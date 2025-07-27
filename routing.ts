@@ -104,4 +104,3 @@ export const getRoute =
   <const Path extends AllPaths<Routes>>(
     path: `/${Path}`
   ): GetRoute<Path, Routes> => {};
-const res = getRoute("/[id]/[user]/user");
