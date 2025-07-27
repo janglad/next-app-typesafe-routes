@@ -1,9 +1,9 @@
-import * as z from "zod";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
-  params: z.ZodType<string> | z.ZodType<string[]> | undefined;
+  params: StandardSchemaV1<string> | StandardSchemaV1<string[]> | undefined;
 }
 
 type GetParamName<Pathname extends string> =
@@ -11,7 +11,7 @@ type GetParamName<Pathname extends string> =
 
 type Params<Pathname extends string> = [GetParamName<Pathname>] extends [never]
   ? undefined
-  : z.ZodType<string>;
+  : StandardSchemaV1<string>;
 
 interface Page<
   in out Pathname extends string,
@@ -84,7 +84,9 @@ type GetRoute<
         Route["params"] extends undefined
           ? Params
           : Params & {
-              [K in GetParamName<Route["path"]>]: z.output<Route["params"]>;
+              [K in GetParamName<Route["path"]>]: StandardSchemaV1.InferOutput<
+                Route["params"]
+              >;
             }
       >
     : //   Page must be last

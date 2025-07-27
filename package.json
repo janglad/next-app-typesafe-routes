@@ -15,6 +15,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@standard-schema/spec": "^1.0.0",
     "nuqs": "^2.4.3",
     "zod": "^4.0.10"
   }
