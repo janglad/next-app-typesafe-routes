@@ -21,7 +21,7 @@ interface Page<
   path: Pathname;
   params: TParams;
 }
-const page = <
+export const page = <
   const Pathname extends string,
   const TParams extends Params<Pathname>
 >(
@@ -42,7 +42,7 @@ interface Layout<
   params: TParams;
   children: Children;
 }
-const layout = <
+export const layout = <
   const Pathname extends string,
   const TParams extends Params<Pathname>,
   const Children extends readonly RouteBase[]
@@ -76,7 +76,7 @@ type GetRoute<
   ? GetMatchingRoute<Pathname, Routes> extends infer Route extends Layout<
       any,
       any,
-      anyœ
+      any
     >
     ? GetRoute<
         Rest,
@@ -95,29 +95,13 @@ type GetRoute<
     : never
   : never;
 
-const test = layout({
-  path: "[id]",
-  params: z.string().brand("id"),
-  children: [
-    page({ path: "somepage", params: undefined }),
-    layout({
-      path: "[user]",
-      params: z.string().brand("user"),
-      children: [page({ path: "user", params: undefined })],
-    }),
-  ],
-});
-
-type Testing = GetRoute<"[id]/[user]/user", [typeof test]>;
-
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-const getRoute = <const Path extends AllPaths<[typeof test]>>(
-  path: `/${Path}`
-): GetRoute<Path, [typeof test]> => {};
-
+export const getRoute =
+  <const Routes extends readonly RouteBase[]>(routes: Routes) =>
+  <const Path extends AllPaths<Routes>>(
+    path: `/${Path}`
+  ): GetRoute<Path, Routes> => {};
 const res = getRoute("/[id]/[user]/user");
-
-type Testing2 = GetRoute<"somepage", [typeof test]>;
