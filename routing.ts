@@ -1,9 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+type AnyParamSchema = StandardSchemaV1<string>;
+
+type AnyRoute = Page<any, any> | Layout<any, any, readonly any[]>;
 interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
-  params: StandardSchemaV1<string> | StandardSchemaV1<string[]> | undefined;
+  params: AnyParamSchema | undefined;
 }
 
 type GetParamName<Pathname extends string> =
@@ -68,7 +71,7 @@ type GetMatchingRoute<
   Routes extends readonly RouteBase[]
 > = Extract<Routes[number], { path: Pathname }>;
 
-type GetRoute<
+type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
   Params extends Record<string, string | string[]> = {}
@@ -78,15 +81,13 @@ type GetRoute<
       any,
       any
     >
-    ? GetRoute<
+    ? GetRouteSchema<
         Rest,
         Route["children"],
         Route["params"] extends undefined
           ? Params
           : Params & {
-              [K in GetParamName<Route["path"]>]: StandardSchemaV1.InferOutput<
-                Route["params"]
-              >;
+              [K in GetParamName<Route["path"]>]: Route["params"];
             }
       >
     : //   Page must be last
@@ -101,8 +102,79 @@ type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
+type SchemaInput<T> = T extends StandardSchemaV1
+  ? StandardSchemaV1.InferInput<T>
+  : T;
+
+const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
+
 export const getRoute =
-  <const Routes extends readonly RouteBase[]>(routes: Routes) =>
-  <const Path extends AllPaths<Routes>>(
-    path: `/${Path}`
-  ): GetRoute<Path, Routes> => {};
+  <const Routes extends AnyRoute>(routes: Routes) =>
+  <
+    const Path extends AllPaths<[Routes]>,
+    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
+      Path,
+      [Routes]
+    >
+  >(
+    path: `/${Path}`,
+    params: {
+      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
+    }
+  ): string => {
+    let pathSegments = (path as string).split("/").splice(1);
+    let url = "";
+    let routeCandidates: readonly AnyRoute[] = [routes];
+
+    for (let i = 0; i < pathSegments.length; i++) {
+      const currentSegment = pathSegments[i];
+      if (currentSegment === undefined) {
+        throw new Error(`Invalid path: ${path}`);
+      }
+      const currentRoute = routeCandidates.find(
+        (route) => route.path === currentSegment
+      );
+
+      if (currentRoute === undefined) {
+        throw new Error(`No route found for ${currentSegment}`);
+      }
+
+      if (currentRoute.type === "layout") {
+        if (i >= pathSegments.length - 1) {
+          throw new Error(`Expected page at ${currentRoute.path}, got layout`);
+        }
+        routeCandidates = currentRoute.children;
+      }
+
+      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
+
+      if (dynamicRouteKey !== undefined) {
+        if (currentRoute.params === undefined) {
+          throw new Error(`No params defined for route ${currentRoute.path}`);
+        }
+
+        const matchingValue = params[dynamicRouteKey as keyof typeof params];
+
+        if (matchingValue === undefined) {
+          throw new Error(`Missing param value for ${dynamicRouteKey}`);
+        }
+
+        const parseRes =
+          currentRoute.params["~standard"].validate(matchingValue);
+        if (parseRes instanceof Promise) {
+          throw new Error(
+            `Schema at ${currentRoute.path} is async, only sync schemas are supported`
+          );
+        }
+        if (parseRes.issues !== undefined) {
+          throw new Error(`Invalid value at ${currentRoute.path}`, {
+            cause: parseRes.issues,
+          });
+        }
+        url += `/${parseRes.value}`;
+      } else {
+        url += `/${currentSegment}`;
+      }
+    }
+    return url;
+  };

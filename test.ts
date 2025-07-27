@@ -1,5 +1,6 @@
 import { getRoute, layout, page } from "./routing.js";
 import * as z from "zod";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 const test = layout({
   path: "[id]",
@@ -171,6 +172,13 @@ const test = layout({
   ],
 });
 
-const route = getRoute([test]);
+const route = getRoute(test);
 
-const res = route("/[id]/[user]/[orderId]/[refundId]/status");
+const res = route("/[id]/[user]/[orderId]/[refundId]/documents", {
+  id: "1",
+  user: "2",
+  orderId: "3",
+  refundId: "4",
+});
+
+console.log(res);
