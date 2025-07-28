@@ -1,22 +1,20 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type { unknown } from "zod";
 
 type AnyParamSchema = StandardSchemaV1<string>;
 
 type AnyRoute = Page<any, any> | Layout<any, any, readonly any[]>;
-interface RouteBase {
+export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
   params: AnyParamSchema | undefined;
 }
 
-type GetParamName<Pathname extends string> =
-  Pathname extends `[${infer ParamName extends string}]` ? ParamName : never;
+type Params<Pathname extends string> = Pathname extends `[${infer ParamName}]`
+  ? StandardSchemaV1<string>
+  : undefined;
 
-type Params<Pathname extends string> = [GetParamName<Pathname>] extends [never]
-  ? undefined
-  : StandardSchemaV1<string>;
-
-interface Page<
+export interface Page<
   in out Pathname extends string,
   in out TParams extends Params<Pathname>
 > extends RouteBase {
@@ -24,18 +22,10 @@ interface Page<
   path: Pathname;
   params: TParams;
 }
-export const page = <
-  const Pathname extends string,
-  const TParams extends Params<Pathname>
->(
-  page: Omit<Page<Pathname, TParams>, "type">
-): Page<Pathname, TParams> =>
-  ({
-    ...page,
-    type: "page",
-  } as Page<Pathname, TParams>);
-
-interface Layout<
+export const page = <const T extends Omit<Page<any, any>, "type">>(
+  page: T
+): Page<T["path"], Params<T["path"]>> => ({ ...page, type: "page" });
+export interface Layout<
   in out Pathname extends string,
   in out TParams extends Params<Pathname>,
   in out Children extends readonly RouteBase[]
@@ -45,24 +35,19 @@ interface Layout<
   params: TParams;
   children: Children;
 }
-export const layout = <
-  const Pathname extends string,
-  const TParams extends Params<Pathname>,
-  const Children extends readonly RouteBase[]
->(
-  layout: Omit<Layout<Pathname, TParams, Children>, "type">
-): Layout<Pathname, TParams, Children> =>
-  ({
-    ...layout,
-    type: "layout",
-  } as Layout<Pathname, TParams, Children>);
+export const layout = <const T extends Omit<Layout<any, any, any>, "type">>(
+  layout: T
+): Layout<T["path"], T["params"], T["children"]> => ({
+  ...layout,
+  type: "layout",
+});
 
-type AllPaths<Routes extends readonly RouteBase[]> =
-  Routes[number] extends infer Route extends RouteBase
-    ? Route extends Page<any, any>
-      ? Route["path"]
-      : Route extends Layout<any, any, any>
-      ? `${Route["path"]}/${AllPaths<Route["children"]>}`
+export type AllPaths<Routes extends readonly RouteBase[]> =
+  Routes[number] extends infer Route
+    ? Route extends Page<infer Pathname, infer _Params>
+      ? Pathname
+      : Route extends Layout<infer Pathname, infer _Params, infer Children>
+      ? `${Pathname}/${AllPaths<Children>}`
       : never
     : never;
 
@@ -71,38 +56,37 @@ type GetMatchingRoute<
   Routes extends readonly RouteBase[]
 > = Extract<Routes[number], { path: Pathname }>;
 
-type GetRouteSchema<
+type ExtractParam<T extends string> = T extends `[${infer P}]` ? P : never;
+
+type ParamMap<T extends string> = ExtractParam<T> extends never
+  ? {}
+  : { [K in ExtractParam<T>]: StandardSchemaV1<string> };
+
+export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
   Params extends Record<string, string | string[]> = {}
-> = Path extends `${infer Pathname extends string}/${infer Rest extends string}`
-  ? GetMatchingRoute<Pathname, Routes> extends infer Route extends Layout<
+> = Path extends `${infer Pathname}/${infer Rest}`
+  ? GetMatchingRoute<Pathname, Routes> extends Layout<
       any,
-      any,
-      any
+      infer PathParams,
+      infer PathChildren
     >
-    ? GetRouteSchema<
-        Rest,
-        Route["children"],
-        Route["params"] extends undefined
-          ? Params
-          : Params & {
-              [K in GetParamName<Route["path"]>]: Route["params"];
-            }
-      >
+    ? GetRouteSchema<Rest, PathChildren, ParamMap<Pathname> & Params>
     : //   Page must be last
       never
-  : GetMatchingRoute<Path, Routes> extends infer Route extends RouteBase
-  ? Route extends Page<any, any>
-    ? Prettify<Params>
-    : never
+  : GetMatchingRoute<Path, Routes> extends Page<
+      infer PathName,
+      infer PathParams
+    >
+  ? Prettify<ParamMap<PathName> & Params>
   : never;
 
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-type SchemaInput<T> = T extends StandardSchemaV1
+export type SchemaInput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferInput<T>
   : T;
 

@@ -1,5 +1,5 @@
-import { getRoute, layout, page } from "./routing.js";
 import * as z from "zod";
+import { getRoute, layout, page, type AllPaths } from "./routing.js";
 
 const routes = layout({
   path: "[id]",
@@ -1090,16 +1090,22 @@ const routes = layout({
         }),
       ],
     }),
+    page({ path: "[settings]", params: z.string().brand("settings") }),
   ],
 });
 
-const getPath = getRoute(routes);
+export type Paths = AllPaths<[typeof routes]>;
 
-const res = getPath("/[id]/[user]/[orderId]/[refundId]/documents", {
+export const getPath = getRoute(routes);
+
+export const res = getPath("/[id]/[user]/[orderId]/[refundId]/documents", {
   id: "1",
   user: "2",
   orderId: "3",
   refundId: "4",
 });
 
-console.log(res);
+getPath("/[id]/[settings]", {
+  id: "1",
+  settings: "2",
+});
