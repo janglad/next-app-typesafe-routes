@@ -327,7 +327,9 @@ class RoutingInternalDefectError extends TaggedError {
   }
 }
 
-export class Router<in out Routes extends AnyRoute> {
+export class Router<
+  in out Routes extends Page<"", any, any> | Layout<"", any, any>
+> {
   readonly ["~routes"]: Routes;
   constructor(routes: Routes) {
     this["~routes"] = routes;
@@ -343,7 +345,7 @@ export class Router<in out Routes extends AnyRoute> {
       [Routes]
     >
   >(
-    path: `/${Path}`,
+    path: Path,
     params: {
       [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
     }
@@ -440,7 +442,7 @@ export class Router<in out Routes extends AnyRoute> {
       [Routes]
     >
   >(
-    path: `/${Path}`,
+    path: Path,
     params: {
       [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
     }
