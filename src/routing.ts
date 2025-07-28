@@ -7,36 +7,51 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   ? StandardSchemaV1<T>
   : never;
 
-type AnyRoute = Page<any, any> | Layout<any, any, readonly any[]>;
+type AnyRoute =
+  | Page<any, any, readonly any[]>
+  | Layout<any, any, readonly any[]>;
 export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
   params: AnyParamSchema | undefined;
 }
 
-type Params<Pathname extends string> = Pathname extends `[${infer ParamName}]`
-  ? StandardSchemaV1<string>
+type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
+  ? StandardSchemaV1<string> | undefined
   : undefined;
 
 export interface Page<
   in out Pathname extends string,
-  in out TParams extends Params<Pathname>
+  in out TParams extends GetParamsSchema<Pathname>,
+  in out Children extends readonly RouteBase[] | undefined
 > extends RouteBase {
   type: "page";
   path: Pathname;
   params: TParams;
+  children: Children;
 }
-export const page = <const T extends Omit<Page<any, any>, "type">>(
-  page: T
-): Page<T["path"], Params<T["path"]>> => ({ ...page, type: "page" });
+export const page = <
+  const Pathname extends string,
+  const ParamsSchema extends GetParamsSchema<Pathname> | undefined = undefined,
+  const Children extends readonly RouteBase[] | undefined = undefined
+>(page: {
+  path: Pathname;
+  params?: ParamsSchema;
+  children?: Children;
+}): Page<Pathname, ParamsSchema, Children> => ({
+  type: "page",
+  path: page.path,
+  params: page.params as ParamsSchema,
+  children: page.children as Children,
+});
 export interface Layout<
   in out Pathname extends string,
-  in out TParams extends Params<Pathname>,
+  in out ParamsSchema extends GetParamsSchema<Pathname>,
   in out Children extends readonly RouteBase[]
 > extends RouteBase {
   type: "layout";
   path: Pathname;
-  params: TParams;
+  params: ParamsSchema;
   children: Children;
 }
 export const layout = <const T extends Omit<Layout<any, any, any>, "type">>(
@@ -46,41 +61,57 @@ export const layout = <const T extends Omit<Layout<any, any, any>, "type">>(
   type: "layout",
 });
 
-export type AllPaths<Routes extends readonly RouteBase[]> =
-  Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, any>
-      ? Pathname
+export type AllPaths<Routes> = Routes extends readonly unknown[]
+  ? Routes[number] extends infer Route
+    ? Route extends Page<infer Pathname, any, infer Children>
+      ? Pathname | `${Pathname}/${AllPaths<Children>}`
       : Route extends Layout<infer Pathname, any, infer Children>
       ? `${Pathname}/${AllPaths<Children>}`
       : never
-    : never;
+    : never
+  : never;
 
 type GetMatchingRoute<
   Pathname extends string,
   Routes extends readonly RouteBase[]
 > = Extract<Routes[number], { path: Pathname }>;
 
-type ExtractParam<T extends string> = T extends `[${infer P}]` ? P : never;
+type ParamKey<T extends string> = T extends `[${infer P}]` ? P : never;
 
-type ParamMap<T extends string> = ExtractParam<T> extends never
+type ParamSchemaMap<
+  RoutePathName extends string,
+  RouteParamSchema
+> = ParamKey<RoutePathName> extends never
   ? {}
-  : { [K in ExtractParam<T>]: StandardSchemaV1<string> };
+  : {
+      [K in ParamKey<RoutePathName>]: RouteParamSchema extends StandardSchemaV1
+        ? RouteParamSchema
+        : StandardSchemaV1<string>;
+    };
 
 export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
-  Params extends Record<string, string | string[]> = {}
-> = Path extends `${infer Pathname}/${infer Rest}`
-  ? GetMatchingRoute<Pathname, Routes> extends Layout<
-      any,
-      any,
-      infer PathChildren
-    >
-    ? GetRouteSchema<Rest, PathChildren, ParamMap<Pathname> & Params>
+  Params extends Record<string, StandardSchemaV1<string>> = {}
+> = Path extends `${infer RoutePathName}/${infer Rest}`
+  ? GetMatchingRoute<RoutePathName, Routes> extends {
+      children: infer RoutePathChildren extends readonly RouteBase[];
+      params: infer RouteParamSchema;
+      path: RoutePathName;
+    }
+    ? GetRouteSchema<
+        Rest,
+        RoutePathChildren,
+        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params
+      >
     : //   Page must be last
       never
-  : GetMatchingRoute<Path, Routes> extends Page<infer PathName, any>
-  ? Prettify<ParamMap<PathName> & Params>
+  : GetMatchingRoute<Path, Routes> extends Page<
+      infer RoutePathName,
+      infer RouteParamSchema,
+      any
+    >
+  ? Prettify<ParamSchemaMap<RoutePathName, RouteParamSchema> & Params>
   : never;
 
 type Prettify<T> = {
@@ -89,7 +120,7 @@ type Prettify<T> = {
 
 export type SchemaInput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferInput<T>
-  : T;
+  : never;
 
 const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
 
@@ -180,9 +211,9 @@ export const getRoute =
             }),
           };
         }
-        url += `/${parseRes.value}`;
+        url += `/${encodeURIComponent(parseRes.value)}`;
       } else {
-        url += `/${currentSegment}`;
+        url += `/${encodeURIComponent(currentSegment)}`;
       }
     }
     return {
@@ -293,5 +324,131 @@ class RoutingInternalDefectError extends TaggedError {
       error._tag ===
         ("RoutingInternalDefectError" satisfies RoutingInternalDefectError["_tag"])
     );
+  }
+}
+
+export class Router<in out Routes extends AnyRoute> {
+  readonly ["~routes"]: Routes;
+  constructor(routes: Routes) {
+    this["~routes"] = routes;
+  }
+  /**
+   * Takes in a path and the matching params for that path. Returns a URL, with each segment URL encoded.
+   */
+
+  route<
+    const Path extends AllPaths<[Routes]>,
+    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
+      Path,
+      [Routes]
+    >
+  >(
+    path: `/${Path}`,
+    params: {
+      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
+    }
+  ):
+    | {
+        ok: true;
+        data: string;
+        error?: undefined;
+      }
+    | {
+        ok: false;
+        data?: undefined;
+        error: RoutingValidationError | RoutingNoMatchingRouteError;
+      } {
+    let pathSegments = (path as string).split("/").splice(1);
+    let url = "";
+    let routeCandidates: readonly AnyRoute[] = [this["~routes"]];
+
+    for (let i = 0; i < pathSegments.length; i++) {
+      const currentSegment = pathSegments[i]!;
+
+      const currentRoute = routeCandidates.find(
+        (route) => route.path === currentSegment
+      );
+
+      if (currentRoute === undefined) {
+        return {
+          ok: false,
+          error: new RoutingNoMatchingRouteError({
+            path: path,
+            pathCandidates: routeCandidates
+              .filter((route) => route.type === "layout")
+              .map((route) => route.path),
+            actual: currentSegment,
+          }),
+        };
+      }
+
+      if (currentRoute.type === "layout") {
+        if (i >= pathSegments.length - 1) {
+          return {
+            ok: false,
+            error: new RoutingNoMatchingRouteError({
+              path: path,
+              pathCandidates: routeCandidates
+                .filter((route) => route.type === "page")
+                .map((route) => route.path),
+              actual: currentSegment,
+            }),
+          };
+        }
+        routeCandidates = currentRoute.children;
+      }
+
+      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
+
+      if (dynamicRouteKey !== undefined && currentRoute.params !== undefined) {
+        const matchingValue = params[dynamicRouteKey as keyof typeof params];
+
+        const parseRes =
+          currentRoute.params["~standard"].validate(matchingValue);
+        if (parseRes instanceof Promise) {
+          throw new RoutingInternalDefectError({
+            message: `Schema at ${currentRoute.path} is async, only sync schemas are supported`,
+          });
+        }
+        if (parseRes.issues !== undefined) {
+          return {
+            ok: false,
+            error: new RoutingValidationError({
+              expected: currentRoute.params["~standard"],
+              actual: matchingValue,
+              path: path,
+              issues: parseRes.issues,
+            }),
+          };
+        }
+        url += `/${encodeURIComponent(parseRes.value)}`;
+      } else {
+        url += `/${currentSegment}`;
+      }
+    }
+    return {
+      ok: true,
+      data: url,
+    };
+  }
+
+  /** Like {@link route} but throws if the route is not found. */
+  routeUnsafe<
+    const Path extends AllPaths<[Routes]>,
+    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
+      Path,
+      [Routes]
+    >
+  >(
+    path: `/${Path}`,
+    params: {
+      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
+    }
+  ): string {
+    const res = this.route(path, params);
+    if (res.ok) {
+      return res.data;
+    }
+    throw res.error;
   }
 }
