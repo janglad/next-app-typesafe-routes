@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { getRoute, layout, page, type AllPaths } from "./routing.js";
+import { getRoute, layout, page, type AllPaths } from "./src/routing.js";
 
 const routes = layout({
   path: "[id]",
