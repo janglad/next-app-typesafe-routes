@@ -44,9 +44,9 @@ export const layout = <const T extends Omit<Layout<any, any, any>, "type">>(
 
 export type AllPaths<Routes extends readonly RouteBase[]> =
   Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, infer _Params>
+    ? Route extends Page<infer Pathname, any>
       ? Pathname
-      : Route extends Layout<infer Pathname, infer _Params, infer Children>
+      : Route extends Layout<infer Pathname, any, infer Children>
       ? `${Pathname}/${AllPaths<Children>}`
       : never
     : never;
@@ -69,16 +69,13 @@ export type GetRouteSchema<
 > = Path extends `${infer Pathname}/${infer Rest}`
   ? GetMatchingRoute<Pathname, Routes> extends Layout<
       any,
-      infer PathParams,
+      any,
       infer PathChildren
     >
     ? GetRouteSchema<Rest, PathChildren, ParamMap<Pathname> & Params>
     : //   Page must be last
       never
-  : GetMatchingRoute<Path, Routes> extends Page<
-      infer PathName,
-      infer PathParams
-    >
+  : GetMatchingRoute<Path, Routes> extends Page<infer PathName, any>
   ? Prettify<ParamMap<PathName> & Params>
   : never;
 
