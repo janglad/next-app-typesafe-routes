@@ -242,9 +242,12 @@ export class Router<
     this["~routes"] = routes;
   }
   /**
-   * Takes in a path and the matching params for that path. Returns a URL, with each segment URL encoded.
+   * @returns a `{ok: true, data: D} | {ok: false, error: E}` union with
+   * - data: an URL with each segment URL encoded
+   * - error:
+   *   - {@link RoutingValidationError}: a provided param does not match the expected schema
+   *   - {@link RoutingNoMatchingRouteError}: the path does not match any route, or the last segment does not match a page
    */
-
   route<
     const Path extends AllPaths<[Routes]>,
     ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
