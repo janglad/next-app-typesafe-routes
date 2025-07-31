@@ -86,71 +86,179 @@ describe("Router", () => {
   });
 
   describe("query parameters", () => {
-    const routesWithQuery = page({
-      path: "",
-      children: [
-        page({
-          path: "home",
-          queryParams: {
-            search: parseAsString,
-            limit: parseAsInteger.withDefault(10),
-          },
-        }),
-        page({
-          path: "profile",
-          queryParams: {
-            tab: parseAsString.withDefault("general"),
-          },
-        }),
-        layout({
-          path: "admin",
-          queryParams: {
-            mode: parseAsString.withDefault("view"),
-          },
-          children: [
-            page({
-              path: "users",
-              queryParams: {
-                filter: parseAsString,
-                page: parseAsInteger.withDefault(1),
+    describe("simple shared query parameters", () => {
+      const routesWithQuery = page({
+        path: "",
+        children: [
+          page({
+            path: "home",
+            queryParams: {
+              search: parseAsString,
+              limit: parseAsInteger.withDefault(10),
+            },
+          }),
+        ],
+      });
+      const queryRouter = new Router(routesWithQuery);
+
+      it("should handle routes with query parameters", () => {
+        const route = queryRouter.route("/home", {}, {
+          search: "test",
+          limit: 20,
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/home?search=test&limit=20");
+      });
+
+      it("should handle routes with some query parameters omitted", () => {
+        const route = queryRouter.route("/home", {}, {
+          search: "test",
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/home?search=test");
+      });
+
+      it("should handle routes with no query parameters", () => {
+        const route = queryRouter.route("/home", {});
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/home");
+      });
+    });
+
+    describe("separated page/layout query parameters", () => {
+      const routesWithSeparatedQuery = page({
+        path: "",
+        children: [
+          page({
+            path: "dashboard",
+            queryParams: {
+              page: {
+                activeTab: parseAsString.withDefault("overview"),
               },
-            }),
-          ],
-        }),
-      ],
-    });
-    const queryRouter = new Router(routesWithQuery);
-
-    it("should handle routes with query parameters", () => {
-      const route = queryRouter.route("/home", {}, {
-        search: "test",
-        limit: 20,
+              layout: {
+                theme: parseAsString.withDefault("light"),
+              },
+            },
+            children: [
+              page({
+                path: "reports",
+                queryParams: {
+                  reportType: parseAsString,
+                },
+              }),
+            ],
+          }),
+        ],
       });
-      expect(route.ok).toBe(true);
-      expect(route.data).toEqual("/home?search=test&limit=20");
-    });
+      const separatedRouter = new Router(routesWithSeparatedQuery);
 
-    it("should handle routes with some query parameters omitted", () => {
-      const route = queryRouter.route("/home", {}, {
-        search: "test",
+      it("should handle page-specific query params for the page itself", () => {
+        const route = separatedRouter.route("/dashboard", {}, {
+          activeTab: "settings",
+          theme: "dark",
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/dashboard?theme=dark&activeTab=settings");
       });
-      expect(route.ok).toBe(true);
-      expect(route.data).toEqual("/home?search=test");
+
+                              it("should inherit layout query params from parent to child", () => {
+          const route = separatedRouter.route("/dashboard/reports", {}, {
+            reportType: "sales",
+            theme: "dark", // This should be inherited from parent layout
+          });
+          expect(route.ok).toBe(true);
+          expect(route.data).toEqual("/dashboard/reports?theme=dark&reportType=sales");
+        });
     });
 
-    it("should handle routes with no query parameters", () => {
-      const route = queryRouter.route("/home", {});
-      expect(route.ok).toBe(true);
-      expect(route.data).toEqual("/home");
-    });
-
-    it("should handle page-specific query params differently from layout", () => {
-      const route = queryRouter.route("/admin/users", {}, {
-        filter: "active",
-        page: 2,
+    describe("query parameter inheritance", () => {
+      const inheritanceRoutes = page({
+        path: "",
+        children: [
+          layout({
+            path: "app",
+            queryParams: {
+              theme: parseAsString.withDefault("light"),
+              lang: parseAsString.withDefault("en"),
+            },
+            children: [
+              layout({
+                path: "workspace",
+                queryParams: {
+                  sidebar: parseAsBoolean.withDefault(true),
+                },
+                children: [
+                  page({
+                    path: "projects",
+                    queryParams: {
+                      sort: parseAsString.withDefault("name"),
+                    },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
       });
-      expect(route.ok).toBe(true);
-      expect(route.data).toEqual("/admin/users?filter=active&page=2");
+      const inheritanceRouter = new Router(inheritanceRoutes);
+
+      it("should inherit query params from multiple parent layouts", () => {
+        const route = inheritanceRouter.route("/app/workspace/projects", {}, {
+          theme: "dark",      // From /app layout
+          lang: "fr",         // From /app layout
+          sidebar: false,     // From /workspace layout
+          sort: "date",       // From /projects page
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/app/workspace/projects?theme=dark&lang=fr&sidebar=false&sort=date");
+      });
+    });
+
+    describe("complex page+layout scenarios", () => {
+      const complexRoutes = page({
+        path: "",
+        children: [
+          page({
+            path: "user",
+            queryParams: {
+              page: {
+                activeTab: parseAsString.withDefault("profile"),
+              },
+              layout: {
+                mode: parseAsString.withDefault("view"),
+              },
+            },
+            children: [
+              page({
+                path: "settings",
+                queryParams: {
+                  section: parseAsString,
+                },
+              }),
+            ],
+          }),
+        ],
+      });
+      const complexRouter = new Router(complexRoutes);
+
+      it("should handle page with separated query params", () => {
+        const route = complexRouter.route("/user", {}, {
+          activeTab: "security",
+          mode: "edit",
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/user?mode=edit&activeTab=security");
+      });
+
+      it("should inherit layout params but not page params from parent", () => {
+        const route = complexRouter.route("/user/settings", {}, {
+          mode: "edit",     // Inherited from parent layout
+          section: "privacy", // Page-specific
+          // activeTab should NOT be inherited as it's page-specific on parent
+        });
+        expect(route.ok).toBe(true);
+        expect(route.data).toEqual("/user/settings?mode=edit&section=privacy");
+      });
     });
   });
 });
