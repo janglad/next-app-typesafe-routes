@@ -317,28 +317,32 @@ export class Router<
 
       const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
 
-      if (dynamicRouteKey !== undefined && currentRoute.params !== undefined) {
+      if (dynamicRouteKey !== undefined) {
         const matchingValue = params[dynamicRouteKey as keyof typeof params];
 
-        const parseRes =
-          currentRoute.params["~standard"].validate(matchingValue);
-        if (parseRes instanceof Promise) {
-          throw new RoutingInternalDefectError({
-            message: `Schema at ${currentRoute.path} is async, only sync schemas are supported`,
-          });
+        if (currentRoute.params === undefined) {
+          url += `/${encodeURIComponent(matchingValue as string)}`;
+        } else {
+          const parseRes =
+            currentRoute.params["~standard"].validate(matchingValue);
+          if (parseRes instanceof Promise) {
+            throw new RoutingInternalDefectError({
+              message: `Schema at ${currentRoute.path} is async, only sync schemas are supported`,
+            });
+          }
+          if (parseRes.issues !== undefined) {
+            return {
+              ok: false,
+              error: new RoutingValidationError({
+                expected: currentRoute.params["~standard"],
+                actual: matchingValue,
+                path: path,
+                issues: parseRes.issues,
+              }),
+            };
+          }
+          url += `/${encodeURIComponent(parseRes.value)}`;
         }
-        if (parseRes.issues !== undefined) {
-          return {
-            ok: false,
-            error: new RoutingValidationError({
-              expected: currentRoute.params["~standard"],
-              actual: matchingValue,
-              path: path,
-              issues: parseRes.issues,
-            }),
-          };
-        }
-        url += `/${encodeURIComponent(parseRes.value)}`;
       } else {
         url += `/${currentSegment}`;
       }
