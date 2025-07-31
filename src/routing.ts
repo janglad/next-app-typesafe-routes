@@ -1,24 +1,9 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { unknown } from "zod";
-import { createSerializer } from "nuqs/server";
+import { createSerializer, type ParserBuilder, type inferParserType } from "nuqs/server";
 
-// Add nuqs types
-type NuqsParser = {
-  serialize: (value: any) => string | null;
-  parse: (value: string | null) => any;
-  withDefault: (defaultValue: any) => NuqsParser;
-  withOptions: (options: any) => NuqsParser;
-};
-
-type InferNuqsParser<T> = T extends NuqsParser & { parse: (value: string | null) => infer R } 
-  ? R 
-  : never;
-
-type NuqsParsersRecord = Record<string, NuqsParser>;
-
-type InferNuqsParsers<T extends NuqsParsersRecord> = {
-  [K in keyof T]: InferNuqsParser<T[K]>;
-};
+// Use real nuqs types
+type NuqsParsersRecord = Record<string, ParserBuilder<any>>;
 
 type AnyParamValue = string;
 
@@ -28,7 +13,7 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
 
 type AnyRoute =
   | Page<any, any, any, readonly any[]>
-  | Layout<any, any, any, readonly any[]>;
+  | Layout<any, any, readonly any[], any>;
 export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
@@ -72,8 +57,8 @@ export const page = <
 export interface Layout<
   in out Pathname extends string,
   in out ParamsSchema extends GetParamsSchema<Pathname>,
-  in out TQueryParams extends NuqsParsersRecord | undefined,
-  in out Children extends readonly RouteBase[]
+  in out Children extends readonly RouteBase[],
+  in out TQueryParams extends NuqsParsersRecord | undefined
 > extends RouteBase {
   type: "layout";
   path: Pathname;
@@ -84,14 +69,14 @@ export interface Layout<
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
-  const QueryParams extends NuqsParsersRecord | undefined = undefined,
-  const Children extends readonly RouteBase[]
+  const Children extends readonly RouteBase[],
+  const QueryParams extends NuqsParsersRecord | undefined = undefined
 >(layout: {
   path: Pathname;
   params?: ParamsSchema;
   queryParams?: QueryParams;
   children?: Children;
-}): Layout<Pathname, ParamsSchema, QueryParams, Children> => ({
+}): Layout<Pathname, ParamsSchema, Children, QueryParams> => ({
   type: "layout",
   path: layout.path,
   params: layout.params as ParamsSchema,
@@ -103,7 +88,7 @@ export type AllPaths<Routes> = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
     ? Route extends Page<infer Pathname, any, any, infer Children>
       ? Pathname | `${Pathname}/${AllPaths<Children>}`
-      : Route extends Layout<infer Pathname, any, any, infer Children>
+      : Route extends Layout<infer Pathname, any, infer Children, any>
       ? `${Pathname}/${AllPaths<Children>}`
       : never
     : never
@@ -168,7 +153,7 @@ export type GetRouteQuerySchema<
     type: "page";
     queryParams: infer QueryParams extends NuqsParsersRecord;
   }
-  ? InferNuqsParsers<QueryParams>
+  ? inferParserType<QueryParams>
   : GetMatchingRoute<Path, Routes> extends {
     type: "page";
     queryParams: undefined;
@@ -319,7 +304,8 @@ export class Router<
     path: Path,
     params: {
       [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    }
+    },
+    queryParams?: GetRouteQuerySchema<Path, [Routes]>
   ):
     | {
         ok: true;
@@ -414,9 +400,23 @@ export class Router<
       previousRoute = currentRoute;
     }
 
+    // Handle query parameters if present
+    let finalUrl = url;
+    if (queryParams && previousRoute.type === "page" && previousRoute.queryParams) {
+      try {
+        const serialize = createSerializer(previousRoute.queryParams);
+        const queryString = serialize(queryParams);
+        if (queryString) {
+          finalUrl = url + (queryString.startsWith("?") ? queryString : "?" + queryString);
+        }
+      } catch (error) {
+        // If serialization fails, just return the base URL
+      }
+    }
+
     return {
       ok: true,
-      data: url,
+      data: finalUrl,
     };
   }
 
@@ -431,7 +431,8 @@ export class Router<
     path: Path,
     params: {
       [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    }
+    },
+    queryParams?: GetRouteQuerySchema<Path, [Routes]>
   ): string {
     const res = this.route(path, params);
     if (res.ok) {

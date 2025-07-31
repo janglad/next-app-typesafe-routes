@@ -1,25 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { layout, page, Router } from "./routing.js";
 import z from "zod";
-
-// Mock nuqs parsers for testing
-const parseAsString = {
-  parse: (value: string | null) => value || "",
-  serialize: (value: string) => value || null,
-  withDefault: (defaultValue: string) => ({
-    parse: (value: string | null) => value || defaultValue,
-    serialize: (value: string) => value || null,
-  }),
-};
-
-const parseAsInteger = {
-  parse: (value: string | null) => value ? parseInt(value, 10) : null,
-  serialize: (value: number) => value?.toString() || null,
-  withDefault: (defaultValue: number) => ({
-    parse: (value: string | null) => value ? parseInt(value, 10) : defaultValue,
-    serialize: (value: number) => value?.toString() || null,
-  }),
-};
+import { parseAsString, parseAsInteger, parseAsBoolean } from "nuqs/server";
 
 const routes = page({
   path: "",
