@@ -71,11 +71,6 @@ export type AllPaths<Routes> = Routes extends readonly unknown[]
     : never
   : never;
 
-type GetMatchingRoute<
-  Pathname extends string,
-  Routes extends readonly RouteBase[]
-> = Extract<Routes[number], { path: Pathname }>;
-
 type ParamKey<T extends string> = T extends `[${infer P}]` ? P : never;
 
 type ParamSchemaMap<
@@ -84,10 +79,15 @@ type ParamSchemaMap<
 > = ParamKey<RoutePathName> extends never
   ? {}
   : {
-      [K in ParamKey<RoutePathName>]: RouteParamSchema extends StandardSchemaV1
-        ? RouteParamSchema
-        : StandardSchemaV1<string>;
+      [K in ParamKey<RoutePathName>]: RouteParamSchema extends undefined
+        ? StandardSchemaV1<string>
+        : RouteParamSchema;
     };
+
+type GetMatchingRoute<
+  Pathname extends string,
+  Routes extends readonly RouteBase[]
+> = Extract<Routes[number], { path: Pathname }>;
 
 export type GetRouteSchema<
   Path extends string,
@@ -106,11 +106,11 @@ export type GetRouteSchema<
       >
     : //   Page must be last
       never
-  : GetMatchingRoute<Path, Routes> extends Page<
-      infer RoutePathName,
-      infer RouteParamSchema,
-      any
-    >
+  : GetMatchingRoute<Path, Routes> extends {
+      type: "page";
+      path: infer RoutePathName extends string;
+      params: infer RouteParamSchema;
+    }
   ? Prettify<ParamSchemaMap<RoutePathName, RouteParamSchema> & Params>
   : never;
 
@@ -242,6 +242,7 @@ export class Router<
     this["~routes"] = routes;
   }
   /**
+
    * @returns a `{ok: true, data: D} | {ok: false, error: E}` union with
    * - data: an URL with each segment URL encoded
    * - error:
@@ -377,5 +378,15 @@ export class Router<
       return res.data;
     }
     throw res.error;
+  }
+
+  makeParser<Path extends AllPaths<[Routes]>>(
+    path: Path
+  ): (params: {
+    [K in keyof GetRouteSchema<Path, [Routes]>]: SchemaInput<
+      GetRouteSchema<Path, [Routes]>[K]
+    >;
+  }) => string {
+    return (params) => this.routeUnsafe(path, params);
   }
 }

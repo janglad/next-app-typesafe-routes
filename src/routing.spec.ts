@@ -71,4 +71,16 @@ describe("Router", () => {
       expect(route.data).toEqual("/hello/hi/BYE");
     });
   });
+  describe("makeParser", () => {
+    it("should return a function that returns the correct data for a static route", (args) => {
+      const parser = router.makeParser("/home");
+      args.annotate(JSON.stringify({ parser, routes }, null, 2));
+      expect(parser({})).toEqual("/home");
+    });
+    it("should return a function that returns the correct data for a dynamic route", (args) => {
+      const parser = router.makeParser("/hello/[idOne]/[idTwo]");
+      args.annotate(JSON.stringify({ parser, routes }, null, 2));
+      expect(parser({ idOne: "hi", idTwo: "bye" })).toEqual("/hello/hi/BYE");
+    });
+  });
 });
