@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { layout, page, Router } from "./routing.js";
 import z from "zod";
 
+// Mock nuqs parsers for testing
+const parseAsString = {
+  parse: (value: string | null) => value || "",
+  serialize: (value: string) => value || null,
+  withDefault: (defaultValue: string) => ({
+    parse: (value: string | null) => value || defaultValue,
+    serialize: (value: string) => value || null,
+  }),
+};
+
+const parseAsInteger = {
+  parse: (value: string | null) => value ? parseInt(value, 10) : null,
+  serialize: (value: number) => value?.toString() || null,
+  withDefault: (defaultValue: number) => ({
+    parse: (value: string | null) => value ? parseInt(value, 10) : defaultValue,
+    serialize: (value: number) => value?.toString() || null,
+  }),
+};
+
 const routes = page({
   path: "",
   params: undefined,
@@ -81,6 +100,75 @@ describe("Router", () => {
       const parser = router.makeParser("/hello/[idOne]/[idTwo]");
       args.annotate(JSON.stringify({ parser, routes }, null, 2));
       expect(parser({ idOne: "hi", idTwo: "bye" })).toEqual("/hello/hi/BYE");
+    });
+  });
+
+  describe("query parameters", () => {
+    const routesWithQuery = page({
+      path: "",
+      children: [
+        page({
+          path: "home",
+          queryParams: {
+            search: parseAsString,
+            limit: parseAsInteger.withDefault(10),
+          },
+        }),
+        page({
+          path: "profile",
+          queryParams: {
+            tab: parseAsString.withDefault("general"),
+          },
+        }),
+        layout({
+          path: "admin",
+          queryParams: {
+            mode: parseAsString.withDefault("view"),
+          },
+          children: [
+            page({
+              path: "users",
+              queryParams: {
+                filter: parseAsString,
+                page: parseAsInteger.withDefault(1),
+              },
+            }),
+          ],
+        }),
+      ],
+    });
+    const queryRouter = new Router(routesWithQuery);
+
+    it("should handle routes with query parameters", () => {
+      const route = queryRouter.route("/home", {}, {
+        search: "test",
+        limit: 20,
+      });
+      expect(route.ok).toBe(true);
+      expect(route.data).toEqual("/home?search=test&limit=20");
+    });
+
+    it("should handle routes with some query parameters omitted", () => {
+      const route = queryRouter.route("/home", {}, {
+        search: "test",
+      });
+      expect(route.ok).toBe(true);
+      expect(route.data).toEqual("/home?search=test");
+    });
+
+    it("should handle routes with no query parameters", () => {
+      const route = queryRouter.route("/home", {});
+      expect(route.ok).toBe(true);
+      expect(route.data).toEqual("/home");
+    });
+
+    it("should handle page-specific query params differently from layout", () => {
+      const route = queryRouter.route("/admin/users", {}, {
+        filter: "active",
+        page: 2,
+      });
+      expect(route.ok).toBe(true);
+      expect(route.data).toEqual("/admin/users?filter=active&page=2");
     });
   });
 });

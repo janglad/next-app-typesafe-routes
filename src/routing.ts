@@ -1,5 +1,24 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { unknown } from "zod";
+import { createSerializer } from "nuqs/server";
+
+// Add nuqs types
+type NuqsParser = {
+  serialize: (value: any) => string | null;
+  parse: (value: string | null) => any;
+  withDefault: (defaultValue: any) => NuqsParser;
+  withOptions: (options: any) => NuqsParser;
+};
+
+type InferNuqsParser<T> = T extends NuqsParser & { parse: (value: string | null) => infer R } 
+  ? R 
+  : never;
+
+type NuqsParsersRecord = Record<string, NuqsParser>;
+
+type InferNuqsParsers<T extends NuqsParsersRecord> = {
+  [K in keyof T]: InferNuqsParser<T[K]>;
+};
 
 type AnyParamValue = string;
 
@@ -8,12 +27,13 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   : never;
 
 type AnyRoute =
-  | Page<any, any, readonly any[]>
-  | Layout<any, any, readonly any[]>;
+  | Page<any, any, any, readonly any[]>
+  | Layout<any, any, any, readonly any[]>;
 export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
   params: AnyParamSchema | undefined;
+  queryParams: NuqsParsersRecord | undefined;
 }
 
 type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
@@ -23,57 +43,67 @@ type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
 export interface Page<
   in out Pathname extends string,
   in out TParams extends GetParamsSchema<Pathname>,
+  in out TQueryParams extends NuqsParsersRecord | undefined,
   in out Children extends readonly RouteBase[] | undefined
 > extends RouteBase {
   type: "page";
   path: Pathname;
   params: TParams;
+  queryParams: TQueryParams;
   children: Children;
 }
 export const page = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname> | undefined = undefined,
+  const QueryParams extends NuqsParsersRecord | undefined = undefined,
   const Children extends readonly RouteBase[] | undefined = undefined
 >(page: {
   path: Pathname;
   params?: ParamsSchema;
+  queryParams?: QueryParams;
   children?: Children;
-}): Page<Pathname, ParamsSchema, Children> => ({
+}): Page<Pathname, ParamsSchema, QueryParams, Children> => ({
   type: "page",
   path: page.path,
   params: page.params as ParamsSchema,
+  queryParams: page.queryParams as QueryParams,
   children: page.children as Children,
 });
 export interface Layout<
   in out Pathname extends string,
   in out ParamsSchema extends GetParamsSchema<Pathname>,
+  in out TQueryParams extends NuqsParsersRecord | undefined,
   in out Children extends readonly RouteBase[]
 > extends RouteBase {
   type: "layout";
   path: Pathname;
   params: ParamsSchema;
+  queryParams: TQueryParams;
   children: Children;
 }
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
+  const QueryParams extends NuqsParsersRecord | undefined = undefined,
   const Children extends readonly RouteBase[]
 >(layout: {
   path: Pathname;
   params?: ParamsSchema;
+  queryParams?: QueryParams;
   children?: Children;
-}): Layout<Pathname, ParamsSchema, Children> => ({
+}): Layout<Pathname, ParamsSchema, QueryParams, Children> => ({
   type: "layout",
   path: layout.path,
   params: layout.params as ParamsSchema,
+  queryParams: layout.queryParams as QueryParams,
   children: layout.children as Children,
 });
 
 export type AllPaths<Routes> = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, any, infer Children>
+    ? Route extends Page<infer Pathname, any, any, infer Children>
       ? Pathname | `${Pathname}/${AllPaths<Children>}`
-      : Route extends Layout<infer Pathname, any, infer Children>
+      : Route extends Layout<infer Pathname, any, any, infer Children>
       ? `${Pathname}/${AllPaths<Children>}`
       : never
     : never
@@ -128,6 +158,28 @@ type Prettify<T> = {
 
 export type SchemaInput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferInput<T>
+  : never;
+
+// Query param schema extraction - gets query params for the exact page, not inherited
+export type GetRouteQuerySchema<
+  Path extends string,
+  Routes extends readonly RouteBase[]
+> = GetMatchingRoute<Path, Routes> extends {
+    type: "page";
+    queryParams: infer QueryParams extends NuqsParsersRecord;
+  }
+  ? InferNuqsParsers<QueryParams>
+  : GetMatchingRoute<Path, Routes> extends {
+    type: "page";
+    queryParams: undefined;
+  }
+  ? {}
+  : Path extends `${infer RoutePathName}/${infer Rest}`
+  ? GetMatchingRoute<RoutePathName, Routes> extends {
+      children: infer RoutePathChildren extends readonly RouteBase[];
+    }
+    ? GetRouteQuerySchema<Rest, RoutePathChildren>
+    : never
   : never;
 
 const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
@@ -243,7 +295,7 @@ class RoutingInternalDefectError extends TaggedError {
 }
 
 export class Router<
-  in out Routes extends Page<"", any, any> | Layout<"", any, any>
+  in out Routes extends Page<"", any, any, any> | Layout<"", any, any, any>
 > {
   readonly ["~routes"]: Routes;
   constructor(routes: Routes) {
