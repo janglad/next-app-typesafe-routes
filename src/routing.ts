@@ -124,104 +124,6 @@ export type SchemaInput<T> = T extends StandardSchemaV1
 
 const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
 
-export const getRoute =
-  <const Routes extends AnyRoute>(routes: Routes) =>
-  <
-    const Path extends AllPaths<[Routes]>,
-    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
-      Path,
-      [Routes]
-    >
-  >(
-    path: `/${Path}`,
-    params: {
-      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    }
-  ):
-    | {
-        ok: true;
-        data: string;
-        error?: undefined;
-      }
-    | {
-        ok: false;
-        data?: undefined;
-        error: RoutingValidationError | RoutingNoMatchingRouteError;
-      } => {
-    let pathSegments = (path as string).split("/").splice(1);
-    let url = "";
-    let routeCandidates: readonly AnyRoute[] = [routes];
-
-    for (let i = 0; i < pathSegments.length; i++) {
-      const currentSegment = pathSegments[i]!;
-
-      const currentRoute = routeCandidates.find(
-        (route) => route.path === currentSegment
-      );
-
-      if (currentRoute === undefined) {
-        return {
-          ok: false,
-          error: new RoutingNoMatchingRouteError({
-            path: path,
-            pathCandidates: routeCandidates
-              .filter((route) => route.type === "layout")
-              .map((route) => route.path),
-            actual: currentSegment,
-          }),
-        };
-      }
-
-      if (currentRoute.type === "layout") {
-        if (i >= pathSegments.length - 1) {
-          return {
-            ok: false,
-            error: new RoutingNoMatchingRouteError({
-              path: path,
-              pathCandidates: routeCandidates
-                .filter((route) => route.type === "page")
-                .map((route) => route.path),
-              actual: currentSegment,
-            }),
-          };
-        }
-        routeCandidates = currentRoute.children;
-      }
-
-      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
-
-      if (dynamicRouteKey !== undefined && currentRoute.params !== undefined) {
-        const matchingValue = params[dynamicRouteKey as keyof typeof params];
-
-        const parseRes =
-          currentRoute.params["~standard"].validate(matchingValue);
-        if (parseRes instanceof Promise) {
-          throw new RoutingInternalDefectError({
-            message: `Schema at ${currentRoute.path} is async, only sync schemas are supported`,
-          });
-        }
-        if (parseRes.issues !== undefined) {
-          return {
-            ok: false,
-            error: new RoutingValidationError({
-              expected: currentRoute.params["~standard"],
-              actual: matchingValue,
-              path: path,
-              issues: parseRes.issues,
-            }),
-          };
-        }
-        url += `/${encodeURIComponent(parseRes.value)}`;
-      } else {
-        url += `/${encodeURIComponent(currentSegment)}`;
-      }
-    }
-    return {
-      ok: true,
-      data: url,
-    };
-  };
-
 abstract class TaggedError extends Error {
   abstract readonly _tag: string;
 }
@@ -276,22 +178,27 @@ class RoutingNoMatchingRouteError extends TaggedError {
   readonly path: string;
   readonly pathCandidates: readonly string[];
   readonly actual: string;
+  readonly type: "noMatch" | "matchedWrongType";
 
   constructor(args: {
     path: string;
     pathCandidates: readonly string[];
     actual: string;
+    type: "noMatch" | "matchedWrongType";
   }) {
     super(
-      `No matching route found for path ${
-        args.path
-      }, expected one of [${args.pathCandidates.join(", ")}] but got ${
+      `${
+        args.type === "noMatch" ? "No matching route" : "Matched wrong type"
+      } for path ${args.path}, expected one of [${args.pathCandidates.join(
+        ", "
+      )}] but got ${
         args.actual
       }. Note that the last segment of a path should always match a page.`
     );
     this.path = args.path;
     this.pathCandidates = args.pathCandidates;
     this.actual = args.actual;
+    this.type = args.type;
   }
 
   static is(error: unknown): error is RoutingNoMatchingRouteError {
@@ -362,12 +269,13 @@ export class Router<
       } {
     let pathSegments = (path as string).split("/").splice(1);
     let url = "";
-    let routeCandidates: readonly AnyRoute[] = [this["~routes"]];
+    let previousRoute: AnyRoute = this["~routes"];
 
-    for (let i = 0; i < pathSegments.length; i++) {
-      const currentSegment = pathSegments[i]!;
-
-      const currentRoute = routeCandidates.find(
+    while (pathSegments.length > 0) {
+      const currentSegment = pathSegments[0]!;
+      pathSegments.shift();
+      const segmentsRemaining = pathSegments.length;
+      const currentRoute = previousRoute.children.find(
         (route) => route.path === currentSegment
       );
 
@@ -376,28 +284,35 @@ export class Router<
           ok: false,
           error: new RoutingNoMatchingRouteError({
             path: path,
-            pathCandidates: routeCandidates
-              .filter((route) => route.type === "layout")
-              .map((route) => route.path),
+            pathCandidates: previousRoute.children.map((route) => route.path),
             actual: currentSegment,
+            type: "noMatch",
           }),
         };
       }
 
-      if (currentRoute.type === "layout") {
-        if (i >= pathSegments.length - 1) {
-          return {
-            ok: false,
-            error: new RoutingNoMatchingRouteError({
-              path: path,
-              pathCandidates: routeCandidates
-                .filter((route) => route.type === "page")
-                .map((route) => route.path),
-              actual: currentSegment,
-            }),
-          };
-        }
-        routeCandidates = currentRoute.children;
+      if (currentRoute.type === "page" && segmentsRemaining > 0) {
+        return {
+          ok: false,
+          error: new RoutingNoMatchingRouteError({
+            path: path,
+            pathCandidates: previousRoute.children.map((route) => route.path),
+            actual: currentSegment,
+            type: "matchedWrongType",
+          }),
+        };
+      }
+
+      if (currentRoute.type === "layout" && segmentsRemaining < 1) {
+        return {
+          ok: false,
+          error: new RoutingNoMatchingRouteError({
+            path: path,
+            pathCandidates: previousRoute.children.map((route) => route.path),
+            actual: currentSegment,
+            type: "matchedWrongType",
+          }),
+        };
       }
 
       const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
@@ -427,7 +342,10 @@ export class Router<
       } else {
         url += `/${currentSegment}`;
       }
+
+      previousRoute = currentRoute;
     }
+
     return {
       ok: true,
       data: url,
