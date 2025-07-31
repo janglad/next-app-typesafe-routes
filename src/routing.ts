@@ -54,11 +54,19 @@ export interface Layout<
   params: ParamsSchema;
   children: Children;
 }
-export const layout = <const T extends Omit<Layout<any, any, any>, "type">>(
-  layout: T
-): Layout<T["path"], T["params"], T["children"]> => ({
-  ...layout,
+export const layout = <
+  const Pathname extends string,
+  const ParamsSchema extends GetParamsSchema<Pathname>,
+  const Children extends readonly RouteBase[]
+>(layout: {
+  path: Pathname;
+  params?: ParamsSchema;
+  children?: Children;
+}): Layout<Pathname, ParamsSchema, Children> => ({
   type: "layout",
+  path: layout.path,
+  params: layout.params as ParamsSchema,
+  children: layout.children as Children,
 });
 
 export type AllPaths<Routes> = Routes extends readonly unknown[]
