@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { parseAsStringEnum, type Parser } from "nuqs/server";
+import { createSerializer, type Parser } from "nuqs/server";
 
 type AnyParamValue = string;
 
@@ -7,24 +7,23 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   ? StandardSchemaV1<T>
   : never;
 
-interface QueryParamsSchema<
-  Layout extends Record<string, Parser<any>>,
-  Page extends Record<string, Parser<any>>
+interface QueryParams<
+  Layout extends Record<string, Parser<any>> = {},
+  Page extends Record<string, Parser<any>> = {}
 > {
   layout: Layout;
   page: Page;
 }
 
-interface AnyQueryParamsSchema extends QueryParamsSchema<any, any> {}
-
 type AnyRoute =
-  | Page<any, any, readonly any[], any>
-  | Layout<any, any, readonly any[], any>;
+  | Page<string, GetParamsSchema<string>, QueryParams, readonly any[]>
+  | Layout<string, GetParamsSchema<string>, QueryParams, readonly any[]>;
 export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
   params: AnyParamSchema | undefined;
-  query: AnyQueryParamsSchema | undefined;
+  query: QueryParams | undefined;
+  children: readonly RouteBase[];
 }
 
 type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
@@ -33,39 +32,39 @@ type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
 
 export interface Page<
   in out Pathname extends string,
-  in out TParams extends GetParamsSchema<Pathname>,
-  in out Children extends readonly RouteBase[] | undefined,
-  in out TQuery extends AnyQueryParamsSchema | undefined
+  in out ParamSchema extends GetParamsSchema<Pathname>,
+  in out QueryParamSchema extends QueryParams,
+  in out Children extends readonly RouteBase[]
 > extends RouteBase {
   type: "page";
   path: Pathname;
-  params: TParams;
+  params: ParamSchema;
   children: Children;
-  query: TQuery;
+  query: QueryParamSchema;
 }
 export const page = <
   const Pathname extends string,
-  const ParamsSchema extends GetParamsSchema<Pathname> | undefined = undefined,
-  const Children extends readonly RouteBase[] | undefined = undefined,
-  const QueryParamsSchema extends AnyQueryParamsSchema | undefined = undefined
+  const ParamsSchema extends GetParamsSchema<Pathname> | undefined,
+  const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
+  const Children extends readonly RouteBase[] = []
 >(page: {
   path: Pathname;
   params?: ParamsSchema;
   children?: Children;
   query?: QueryParamsSchema;
-}): Page<Pathname, ParamsSchema, Children, QueryParamsSchema> => ({
+}): Page<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
   type: "page",
   path: page.path,
   params: page.params as ParamsSchema,
-  children: page.children as Children,
-  query: page.query as QueryParamsSchema,
+  children: (page.children ?? []) as Children,
+  query: (page.query ?? { page: {}, layout: {} }) as QueryParamsSchema,
 });
 
 export interface Layout<
   in out Pathname extends string,
   in out ParamsSchema extends GetParamsSchema<Pathname>,
-  in out Children extends readonly RouteBase[],
-  in out QueryParamsSchema extends AnyQueryParamsSchema | undefined
+  in out QueryParamsSchema extends QueryParams,
+  in out Children extends readonly RouteBase[]
 > extends RouteBase {
   type: "layout";
   path: Pathname;
@@ -76,27 +75,32 @@ export interface Layout<
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
-  const Children extends readonly RouteBase[],
-  const QueryParamsSchema extends AnyQueryParamsSchema | undefined
+  const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
+  const Children extends readonly RouteBase[] = []
 >(layout: {
   path: Pathname;
   params?: ParamsSchema;
   children: Children;
   query?: QueryParamsSchema;
-}): Layout<Pathname, ParamsSchema, Children, QueryParamsSchema> => ({
+}): Layout<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
   type: "layout",
   path: layout.path,
   params: layout.params as ParamsSchema,
-  children: layout.children as Children,
-  query: layout.query as QueryParamsSchema,
+  children: (layout.children ?? []) as Children,
+  query: (layout.query ?? { page: {}, layout: {} }) as QueryParamsSchema,
 });
 
-export type AllPaths<Routes> = Routes extends readonly unknown[]
+export type AllPaths<
+  Routes,
+  Type extends AnyRoute["type"]
+> = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, any, infer Children, any>
-      ? Pathname | `${Pathname}/${AllPaths<Children>}`
-      : Route extends Layout<infer Pathname, any, infer Children, any>
-      ? `${Pathname}/${AllPaths<Children>}`
+    ? Route extends Page<infer Pathname, any, any, infer Children>
+      ? Pathname | `${Pathname}/${AllPaths<Children, Type>}`
+      : Route extends Layout<infer Pathname, any, any, infer Children>
+      ?
+          | `${Pathname}/${AllPaths<Children, Type>}`
+          | (Type extends "layout" ? Pathname : never)
       : never
     : never
   : never;
@@ -119,32 +123,48 @@ type GetMatchingRoute<
   Routes extends readonly RouteBase[]
 > = Extract<Routes[number], { path: Pathname }>;
 
+type GetPageQueryParamsSchema<T> = T extends QueryParams ? T["page"] : {};
+type GetLayoutQueryParamsSchema<T> = T extends QueryParams ? T["layout"] : {};
+
 export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
-  Params extends Record<string, StandardSchemaV1<string>> = {}
+  Params extends Record<string, StandardSchemaV1<string>> = {},
+  PageQueryParamMap = {}
 > = Path extends `${infer RoutePathName}/${infer Rest}`
   ? GetMatchingRoute<RoutePathName, Routes> extends {
       children: infer RoutePathChildren extends readonly RouteBase[];
       params: infer RouteParamSchema;
       path: RoutePathName;
+      query: infer RouteQuerySchema;
     }
     ? GetRouteSchema<
         Rest,
         RoutePathChildren,
-        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params
+        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params,
+        GetLayoutQueryParamsSchema<RouteQuerySchema> & PageQueryParamMap
       >
-    : //   Page must be last
-      never
+    : never
   : GetMatchingRoute<Path, Routes> extends {
       type: "page";
       path: infer RoutePathName extends string;
       params: infer RouteParamSchema;
+      query: infer RouteQuerySchema;
     }
   ? {
       params: Prettify<
         ParamSchemaMap<RoutePathName, RouteParamSchema> & Params
       >;
+      query: {
+        page: Prettify<
+          PageQueryParamMap &
+            GetPageQueryParamsSchema<RouteQuerySchema> &
+            GetLayoutQueryParamsSchema<RouteQuerySchema>
+        >;
+        layout: Prettify<
+          PageQueryParamMap & GetLayoutQueryParamsSchema<RouteQuerySchema>
+        >;
+      };
     }
   : never;
 
@@ -155,6 +175,10 @@ type Prettify<T> = {
 export type SchemaInput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferInput<T>
   : never;
+
+type GetParserMapInput<T extends Record<string, Parser<any>>> = {
+  [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
+};
 
 const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
 
@@ -174,13 +198,13 @@ class RoutingValidationError extends TaggedError {
   readonly expected: AnyParamValue;
   readonly actual: unknown;
   readonly path: string;
-  readonly issues: StandardSchemaV1.Issue[];
+  readonly issues: readonly StandardSchemaV1.Issue[];
 
   constructor(args: {
     expected: AnyParamValue;
     actual: unknown;
     path: string;
-    issues: StandardSchemaV1.Issue[];
+    issues: readonly StandardSchemaV1.Issue[];
   }) {
     super(`Expected ${args.expected}, got ${args.actual} at path ${args.path}`);
     this.expected = args.expected;
@@ -252,9 +276,11 @@ class RoutingNoMatchingRouteError extends TaggedError {
  */
 class RoutingInternalDefectError extends TaggedError {
   readonly _tag = "RoutingInternalDefectError";
+  readonly metaData?: Record<string, unknown>;
 
-  constructor(args: { message: string }) {
+  constructor(args: { message: string; metaData?: Record<string, unknown> }) {
     super(args.message);
+    this.metaData = args.metaData;
   }
 
   static is(error: unknown): error is RoutingInternalDefectError {
@@ -275,6 +301,85 @@ export class Router<
   constructor(routes: Routes) {
     this["~routes"] = routes;
   }
+
+  getRouteSchema<const Path extends AllPaths<[Routes], AnyRoute["type"]>>(
+    path: Path
+  ):
+    | {
+        ok: true;
+        data: {
+          schema: GetRouteSchema<Path, [Routes]>;
+          matchedType: AnyRoute["type"];
+        };
+        error?: undefined;
+      }
+    | {
+        ok: false;
+        data?: undefined;
+        error: RoutingNoMatchingRouteError;
+      } {
+    const res = {
+      params: {} as Record<string, AnyParamSchema | undefined>,
+      query: {
+        layout: {} as Record<string, Parser<any>>,
+        page: {} as Record<string, Parser<any>>,
+      },
+    };
+    let pathSegments = (path as string).split("/").splice(1);
+    let currentRoute: AnyRoute = this["~routes"];
+
+    while (true) {
+      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
+      if (dynamicRouteKey !== undefined) {
+        if (currentRoute.params !== undefined) {
+          res.params[dynamicRouteKey] = currentRoute.params;
+        } else {
+          res.params[dynamicRouteKey] = undefined;
+        }
+      }
+
+      for (const key of Object.keys(currentRoute.query.layout)) {
+        res.query.layout[key] = currentRoute.query.layout[
+          key as keyof typeof currentRoute.query.layout
+        ] as any;
+      }
+      for (const key of Object.keys(currentRoute.query.page)) {
+        res.query.page[key] = currentRoute.query.page[
+          key as keyof typeof currentRoute.query.page
+        ] as any;
+      }
+
+      if (pathSegments.length === 0) {
+        break;
+      }
+
+      const newRoute = currentRoute.children.find(
+        (route) => route.path === pathSegments[0]
+      );
+      if (newRoute === undefined) {
+        return {
+          ok: false,
+          error: new RoutingNoMatchingRouteError({
+            path: path,
+            pathCandidates: currentRoute.children.map((route) => route.path),
+            actual: pathSegments[0]!,
+            type: "noMatch",
+          }),
+        };
+      }
+      currentRoute = newRoute;
+      pathSegments.shift();
+    }
+
+    return {
+      ok: true,
+      data: {
+        schema: res as GetRouteSchema<Path, [Routes]>,
+        matchedType: currentRoute["type"],
+      },
+    };
+  }
+
   /**
 
    * @returns a `{ok: true, data: D} | {ok: false, error: E}` union with
@@ -284,16 +389,14 @@ export class Router<
    *   - {@link RoutingNoMatchingRouteError}: the path does not match any route, or the last segment does not match a page
    */
   route<
-    const Path extends AllPaths<[Routes]>,
-    ParamsSchema extends GetRouteSchema<
-      Path,
-      [Routes]
-    >["params"] = GetRouteSchema<Path, [Routes]>["params"]
+    const Path extends AllPaths<[Routes], "page">,
+    const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
     path: Path,
     params: {
-      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    }
+      [K in keyof RouteSchema["params"]]: SchemaInput<RouteSchema["params"][K]>;
+    },
+    query: GetParserMapInput<RouteSchema["query"]["page"]>
   ):
     | {
         ok: true;
@@ -305,88 +408,51 @@ export class Router<
         data?: undefined;
         error: RoutingValidationError | RoutingNoMatchingRouteError;
       } {
-    let pathSegments = (path as string).split("/").splice(1);
-    let url = "";
-    let previousRoute: AnyRoute = this["~routes"];
-
-    while (pathSegments.length > 0) {
-      const currentSegment = pathSegments[0]!;
-      pathSegments.shift();
-      const segmentsRemaining = pathSegments.length;
-      const currentRoute = previousRoute.children.find(
-        (route) => route.path === currentSegment
-      );
-
-      if (currentRoute === undefined) {
-        return {
-          ok: false,
-          error: new RoutingNoMatchingRouteError({
-            path: path,
-            pathCandidates: previousRoute.children.map((route) => route.path),
-            actual: currentSegment,
-            type: "noMatch",
-          }),
-        };
-      }
-
-      if (currentRoute.type === "page" && segmentsRemaining > 0) {
-        return {
-          ok: false,
-          error: new RoutingNoMatchingRouteError({
-            path: path,
-            pathCandidates: previousRoute.children.map((route) => route.path),
-            actual: currentSegment,
-            type: "matchedWrongType",
-          }),
-        };
-      }
-
-      if (currentRoute.type === "layout" && segmentsRemaining < 1) {
-        return {
-          ok: false,
-          error: new RoutingNoMatchingRouteError({
-            path: path,
-            pathCandidates: previousRoute.children.map((route) => route.path),
-            actual: currentSegment,
-            type: "matchedWrongType",
-          }),
-        };
-      }
-
-      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
-
-      if (dynamicRouteKey !== undefined) {
-        const matchingValue = params[dynamicRouteKey as keyof typeof params];
-
-        if (currentRoute.params === undefined) {
-          url += `/${encodeURIComponent(matchingValue as string)}`;
-        } else {
-          const parseRes =
-            currentRoute.params["~standard"].validate(matchingValue);
-          if (parseRes instanceof Promise) {
-            throw new RoutingInternalDefectError({
-              message: `Schema at ${currentRoute.path} is async, only sync schemas are supported`,
-            });
-          }
-          if (parseRes.issues !== undefined) {
-            return {
-              ok: false,
-              error: new RoutingValidationError({
-                expected: currentRoute.params["~standard"],
-                actual: matchingValue,
-                path: path,
-                issues: parseRes.issues,
-              }),
-            };
-          }
-          url += `/${encodeURIComponent(parseRes.value)}`;
-        }
-      } else {
-        url += `/${currentSegment}`;
-      }
-
-      previousRoute = currentRoute;
+    const schemaRes = this.getRouteSchema(path);
+    if (schemaRes.ok === false) {
+      return schemaRes;
     }
+
+    const parsedParams: Record<string, string> = {};
+
+    for (const dynamicRouteKey of Object.keys(schemaRes.data.schema.params)) {
+      const paramsSchema: StandardSchemaV1<string> | undefined =
+        schemaRes.data.schema.params[
+          dynamicRouteKey as keyof typeof schemaRes.data.schema.params
+        ];
+
+      if (paramsSchema === undefined) {
+        parsedParams[dynamicRouteKey] = encodeURIComponent(
+          params[dynamicRouteKey as keyof typeof params] as string
+        );
+      } else {
+        const parseRes = (paramsSchema as StandardSchemaV1<string>)[
+          "~standard"
+        ].validate(params[dynamicRouteKey as keyof typeof params]);
+        if (parseRes instanceof Promise) {
+          throw new RoutingInternalDefectError({
+            message: `Schema at ${dynamicRouteKey} of ${path} is async, only sync schemas are supported`,
+          });
+        }
+        if (parseRes.issues !== undefined) {
+          return {
+            ok: false,
+            error: new RoutingValidationError({
+              expected: paramsSchema,
+              actual: params[dynamicRouteKey as keyof typeof params],
+              path: path,
+              issues: parseRes.issues,
+            }),
+          };
+        }
+        parsedParams[dynamicRouteKey] = encodeURIComponent(parseRes.value);
+      }
+    }
+
+    const urlWithParams = Router.fillInPathParams(path, parsedParams);
+    const serializer = createSerializer(schemaRes.data.schema.query.page);
+    const queryString = serializer(query);
+    const url = `${urlWithParams}${queryString}`;
 
     return {
       ok: true,
@@ -394,9 +460,26 @@ export class Router<
     };
   }
 
+  static fillInPathParams(path: string, params: Record<string, string>) {
+    return path.replace(/\[([^\]]+)\]/g, (_, key) => {
+      const value = params[key];
+      if (value === undefined) {
+        throw new RoutingInternalDefectError({
+          message: `Missing parameter: ${key}`,
+          metaData: {
+            params,
+            path,
+            key,
+          },
+        });
+      }
+      return encodeURIComponent(String(value));
+    });
+  }
+
   /** Like {@link route} but throws if the route is not found. */
   routeUnsafe<
-    const Path extends AllPaths<[Routes]>,
+    const Path extends AllPaths<[Routes], "page">,
     ParamsSchema extends GetRouteSchema<
       Path,
       [Routes]
@@ -405,22 +488,26 @@ export class Router<
     path: Path,
     params: {
       [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    }
+    },
+    query: GetParserMapInput<GetRouteSchema<Path, [Routes]>["query"]["page"]>
   ): string {
-    const res = this.route(path, params);
+    const res = this.route(path, params, query);
     if (res.ok) {
       return res.data;
     }
     throw res.error;
   }
 
-  makeParser<Path extends AllPaths<[Routes]>>(
+  makeParser<Path extends AllPaths<[Routes], "page">>(
     path: Path
-  ): (params: {
-    [K in keyof GetRouteSchema<Path, [Routes]>["params"]]: SchemaInput<
-      GetRouteSchema<Path, [Routes]>["params"][K]
-    >;
-  }) => string {
-    return (params) => this.routeUnsafe(path, params);
+  ): (
+    params: {
+      [K in keyof GetRouteSchema<Path, [Routes]>["params"]]: SchemaInput<
+        GetRouteSchema<Path, [Routes]>["params"][K]
+      >;
+    },
+    query: GetParserMapInput<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+  ) => string {
+    return (params, query) => this.routeUnsafe(path, params, query);
   }
 }

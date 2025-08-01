@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "typecheck": "tsc --noEmit --diagnostics",
     "test:watch": "vitest --watch"
   },
   "keywords": [],

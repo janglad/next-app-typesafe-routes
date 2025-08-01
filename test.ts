@@ -1,5 +1,6 @@
 import * as z from "zod";
-import { layout, page, Router } from "./src/routing.js";
+import { layout, page, Router, type GetRouteSchema } from "./src/routing.js";
+import { parseAsString } from "nuqs";
 
 const routes = layout({
   path: "",
@@ -1127,25 +1128,37 @@ const routes = layout({
 
 const router = new Router(routes);
 
-export const res = router.route("/[id]/[user]/[orderId]/[refundId]/documents", {
-  id: "1",
-  user: "2",
-  orderId: "3",
-  refundId: "hi",
-});
-
-router.route("/[id]/[settings]", {
-  id: "1",
-  settings: "2",
-});
+export const res = router.route(
+  "/[id]/[user]/[orderId]/[refundId]/documents",
+  {
+    id: "1",
+    user: "2",
+    orderId: "3",
+    refundId: "hi",
+  },
+  {}
+);
 
 const test = layout({
   path: "",
-
+  query: {
+    page: {},
+    layout: {
+      layoutParam: parseAsString,
+    },
+  },
   children: [
     page({
       path: "[id]",
       params: z.string().brand("id"),
+      query: {
+        page: {
+          type: z.string().brand("page"),
+        },
+        layout: {
+          layout: z.string().brand("layout"),
+        },
+      },
       children: [page({ path: "[somepage]" })],
     }),
   ],
@@ -1153,7 +1166,30 @@ const test = layout({
 
 const router2 = new Router(test);
 
-router2.route("/[id]/[somepage]", {
-  somepage: "hi",
-  id: "hi",
+router2.route(
+  "/[id]/[somepage]",
+  {
+    somepage: "hi",
+    id: "hi",
+  },
+  {}
+);
+
+const someRouter = layout({
+  path: "",
+
+  children: [
+    page({
+      path: "[id]",
+      params: z.string().brand("id"),
+      query: {
+        page: {
+          type: z.string().brand("page"),
+        },
+        layout: {
+          layout: z.string().brand("layout"),
+        },
+      },
+    }),
+  ],
 });
