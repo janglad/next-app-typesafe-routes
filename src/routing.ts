@@ -7,9 +7,12 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   ? StandardSchemaV1<T>
   : never;
 
-interface QueryParamsSchema<Layout, Page> {
-  layout: Record<string, Parser<any>>;
-  page: Record<string, Parser<any>>;
+interface QueryParamsSchema<
+  Layout extends Record<string, Parser<any>>,
+  Page extends Record<string, Parser<any>>
+> {
+  layout: Layout;
+  page: Page;
 }
 
 interface AnyQueryParamsSchema extends QueryParamsSchema<any, any> {}
@@ -138,7 +141,11 @@ export type GetRouteSchema<
       path: infer RoutePathName extends string;
       params: infer RouteParamSchema;
     }
-  ? Prettify<ParamSchemaMap<RoutePathName, RouteParamSchema> & Params>
+  ? {
+      params: Prettify<
+        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params
+      >;
+    }
   : never;
 
 type Prettify<T> = {
@@ -278,10 +285,10 @@ export class Router<
    */
   route<
     const Path extends AllPaths<[Routes]>,
-    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
+    ParamsSchema extends GetRouteSchema<
       Path,
       [Routes]
-    >
+    >["params"] = GetRouteSchema<Path, [Routes]>["params"]
   >(
     path: Path,
     params: {
@@ -390,10 +397,10 @@ export class Router<
   /** Like {@link route} but throws if the route is not found. */
   routeUnsafe<
     const Path extends AllPaths<[Routes]>,
-    ParamsSchema extends GetRouteSchema<Path, [Routes]> = GetRouteSchema<
+    ParamsSchema extends GetRouteSchema<
       Path,
       [Routes]
-    >
+    >["params"] = GetRouteSchema<Path, [Routes]>["params"]
   >(
     path: Path,
     params: {
@@ -410,8 +417,8 @@ export class Router<
   makeParser<Path extends AllPaths<[Routes]>>(
     path: Path
   ): (params: {
-    [K in keyof GetRouteSchema<Path, [Routes]>]: SchemaInput<
-      GetRouteSchema<Path, [Routes]>[K]
+    [K in keyof GetRouteSchema<Path, [Routes]>["params"]]: SchemaInput<
+      GetRouteSchema<Path, [Routes]>["params"][K]
     >;
   }) => string {
     return (params) => this.routeUnsafe(path, params);
