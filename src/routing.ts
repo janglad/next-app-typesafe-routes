@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { unknown } from "zod";
+import { parseAsStringEnum, type Parser } from "nuqs/server";
 
 type AnyParamValue = string;
 
@@ -7,13 +7,21 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   ? StandardSchemaV1<T>
   : never;
 
+interface QueryParamsSchema<Layout, Page> {
+  layout: Record<string, Parser<any>>;
+  page: Record<string, Parser<any>>;
+}
+
+interface AnyQueryParamsSchema extends QueryParamsSchema<any, any> {}
+
 type AnyRoute =
-  | Page<any, any, readonly any[]>
-  | Layout<any, any, readonly any[]>;
+  | Page<any, any, readonly any[], any>
+  | Layout<any, any, readonly any[], any>;
 export interface RouteBase {
   type: "page" | "layout";
   path: string | undefined;
   params: AnyParamSchema | undefined;
+  query: AnyQueryParamsSchema | undefined;
 }
 
 type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
@@ -23,57 +31,68 @@ type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
 export interface Page<
   in out Pathname extends string,
   in out TParams extends GetParamsSchema<Pathname>,
-  in out Children extends readonly RouteBase[] | undefined
+  in out Children extends readonly RouteBase[] | undefined,
+  in out TQuery extends AnyQueryParamsSchema | undefined
 > extends RouteBase {
   type: "page";
   path: Pathname;
   params: TParams;
   children: Children;
+  query: TQuery;
 }
 export const page = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname> | undefined = undefined,
-  const Children extends readonly RouteBase[] | undefined = undefined
+  const Children extends readonly RouteBase[] | undefined = undefined,
+  const QueryParamsSchema extends AnyQueryParamsSchema | undefined = undefined
 >(page: {
   path: Pathname;
   params?: ParamsSchema;
   children?: Children;
-}): Page<Pathname, ParamsSchema, Children> => ({
+  query?: QueryParamsSchema;
+}): Page<Pathname, ParamsSchema, Children, QueryParamsSchema> => ({
   type: "page",
   path: page.path,
   params: page.params as ParamsSchema,
   children: page.children as Children,
+  query: page.query as QueryParamsSchema,
 });
+
 export interface Layout<
   in out Pathname extends string,
   in out ParamsSchema extends GetParamsSchema<Pathname>,
-  in out Children extends readonly RouteBase[]
+  in out Children extends readonly RouteBase[],
+  in out QueryParamsSchema extends AnyQueryParamsSchema | undefined
 > extends RouteBase {
   type: "layout";
   path: Pathname;
   params: ParamsSchema;
   children: Children;
+  query: QueryParamsSchema;
 }
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
-  const Children extends readonly RouteBase[]
+  const Children extends readonly RouteBase[],
+  const QueryParamsSchema extends AnyQueryParamsSchema | undefined
 >(layout: {
   path: Pathname;
   params?: ParamsSchema;
-  children?: Children;
-}): Layout<Pathname, ParamsSchema, Children> => ({
+  children: Children;
+  query?: QueryParamsSchema;
+}): Layout<Pathname, ParamsSchema, Children, QueryParamsSchema> => ({
   type: "layout",
   path: layout.path,
   params: layout.params as ParamsSchema,
   children: layout.children as Children,
+  query: layout.query as QueryParamsSchema,
 });
 
 export type AllPaths<Routes> = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, any, infer Children>
+    ? Route extends Page<infer Pathname, any, infer Children, any>
       ? Pathname | `${Pathname}/${AllPaths<Children>}`
-      : Route extends Layout<infer Pathname, any, infer Children>
+      : Route extends Layout<infer Pathname, any, infer Children, any>
       ? `${Pathname}/${AllPaths<Children>}`
       : never
     : never
@@ -243,7 +262,7 @@ class RoutingInternalDefectError extends TaggedError {
 }
 
 export class Router<
-  in out Routes extends Page<"", any, any> | Layout<"", any, any>
+  in out Routes extends Page<"", any, any, any> | Layout<"", any, any, any>
 > {
   readonly ["~routes"]: Routes;
   constructor(routes: Routes) {
