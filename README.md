@@ -13,12 +13,10 @@ Simple type safe routing for Next.js app router
 - [ ] Look into parallel/intercepting routes
 - [ ] Add support for catch all routes (e.g. `[...path]`)
 - [ ] Think about API of passing info (one big object, optional stuff etc)
-- [ ] Don't require both `layout` and `page` to be passed for `query`
 - [ ] Remove `page` on `query` for `layout` routes
 
 ### Testing
 
-- [ ] Type tests (incl performance tests)
 - [ ] Runtime performance tests
 
 ## Example

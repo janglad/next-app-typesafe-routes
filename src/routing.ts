@@ -1,5 +1,10 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { createSerializer, type Parser } from "nuqs/server";
+import {
+  createSerializer,
+  parseAsBoolean,
+  parseAsString,
+  type Parser,
+} from "nuqs/server";
 
 type AnyParamValue = string;
 
@@ -7,9 +12,11 @@ type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
   ? StandardSchemaV1<T>
   : never;
 
+interface QueryParamParserMap<T> extends Record<string, Parser<T>> {}
+
 interface QueryParams<
-  Layout extends Record<string, Parser<any>> = {},
-  Page extends Record<string, Parser<any>> = {}
+  Layout extends QueryParamParserMap<any> = {},
+  Page extends QueryParamParserMap<any> = {}
 > {
   layout: Layout;
   page: Page;
@@ -32,6 +39,30 @@ type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
   ? StandardSchemaV1<string> | undefined
   : undefined;
 
+type MakeQueryParamsReturn<T> = T extends QueryParamParserMap<any>
+  ? QueryParams<T, T>
+  : T;
+
+const makeQueryParams = <
+  // const PageParserMap extends QueryParamParserMap<any>,
+  // const LayoutParserMap extends QueryParamParserMap<any> = PageParserMap
+  const ParserMap extends QueryParamParserMap<any> | QueryParams<any, any>
+>(
+  parser: ParserMap
+): MakeQueryParamsReturn<ParserMap> => {
+  if (
+    Object.keys(parser).length === 2 &&
+    ("layout" in parser || "page" in parser)
+  ) {
+    return parser as any;
+  }
+
+  return {
+    layout: parser,
+    page: parser,
+  } as any;
+};
+
 export interface Page<
   in out Pathname extends string,
   in out ParamSchema extends GetParamsSchema<Pathname>,
@@ -47,19 +78,29 @@ export interface Page<
 export const page = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname> | undefined,
-  const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
+  const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
+    layout: {};
+    page: {};
+  },
   const Children extends readonly RouteBase[] = []
 >(page: {
   readonly path: Pathname;
   readonly params?: ParamsSchema;
   readonly children?: Children;
   readonly query?: QueryParamsSchema;
-}): Page<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
+}): Page<
+  Pathname,
+  ParamsSchema,
+  MakeQueryParamsReturn<QueryParamsSchema>,
+  Children
+> => ({
   type: "page",
   path: page.path,
   params: page.params as ParamsSchema,
   children: (page.children ?? []) as Children,
-  query: (page.query ?? { page: {}, layout: {} }) as QueryParamsSchema,
+  query: (page.query
+    ? makeQueryParams(page.query)
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
 });
 
 export interface Layout<
@@ -77,19 +118,29 @@ export interface Layout<
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
-  const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
+  const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
+    layout: {};
+    page: {};
+  },
   const Children extends readonly RouteBase[] = []
 >(layout: {
   readonly path: Pathname;
   readonly params?: ParamsSchema;
   readonly children: Children;
   readonly query?: QueryParamsSchema;
-}): Layout<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
+}): Layout<
+  Pathname,
+  ParamsSchema,
+  MakeQueryParamsReturn<QueryParamsSchema>,
+  Children
+> => ({
   type: "layout",
   path: layout.path,
   params: layout.params as ParamsSchema,
   children: (layout.children ?? []) as Children,
-  query: (layout.query ?? { page: {}, layout: {} }) as QueryParamsSchema,
+  query: (layout.query
+    ? makeQueryParams(layout.query)
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
 });
 
 export type AllPaths<

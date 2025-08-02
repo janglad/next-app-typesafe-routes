@@ -33,7 +33,7 @@ const routes = page({
                 }),
                 page({
                   path: "[uuid]",
-                  params: z.string().uuid(),
+                  params: z.uuid(),
                 }),
               ],
             }),
@@ -61,6 +61,20 @@ const routes = page({
             layout: {
               dynamicLayoutParam: parseAsString,
             },
+          },
+        }),
+      ],
+    }),
+    page({
+      path: "staticPageWithSharedQuery",
+      query: {
+        param1: parseAsString,
+      },
+      children: [
+        page({
+          path: "staticPageWithSharedQueryChild",
+          query: {
+            param2: parseAsString,
           },
         }),
       ],
@@ -202,6 +216,20 @@ describe("Router", () => {
     expect(res.error).toBeDefined();
     expect(res.error?._tag).toEqual("RoutingNoMatchingRouteError");
     expect(res.data).toBeUndefined();
+  });
+
+  it("Should allow routing to a page with shared query params", (args) => {
+    const res = router.route(
+      "/staticPageWithSharedQuery/staticPageWithSharedQueryChild",
+      {},
+      { param1: "param1", param2: "param2" }
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.error).toBeUndefined();
+    expect(res.data).toHaveExactQueryParams({
+      param1: "param1",
+      param2: "param2",
+    });
   });
 });
 
