@@ -359,9 +359,19 @@ export class Router<
     return path.match(/^\[(.*)\]$/)?.[1];
   }
 
+  getRouteSchemaCache = new Map<
+    string,
+    GetRouteSchemaReturn<Routes, AllPaths<[Routes], RouteType>>
+  >();
+
   getRouteSchema<const Path extends AllPaths<[Routes], RouteType>>(
     path: Path
   ): GetRouteSchemaReturn<Routes, Path> {
+    const cached = this.getRouteSchemaCache.get(path);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const res = {
       params: {} as Record<string, AnyParamSchema | undefined>,
       query: {
@@ -423,13 +433,17 @@ export class Router<
       pathSegments.shift();
     }
 
-    return {
-      ok: true,
+    const returnValue = {
+      ok: true as const,
       data: {
         schema: res as GetRouteSchema<Path, [Routes]>,
         matchedType: currentRoute["type"],
       },
     };
+
+    this.getRouteSchemaCache.set(path, returnValue);
+
+    return returnValue;
   }
 
   /**
