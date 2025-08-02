@@ -1,10 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import {
-  createSerializer,
-  parseAsBoolean,
-  parseAsString,
-  type Parser,
-} from "nuqs/server";
+import { createSerializer, type Parser } from "nuqs/server";
 
 type AnyParamValue = string;
 
