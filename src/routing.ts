@@ -18,8 +18,10 @@ interface QueryParams<
 type AnyRoute =
   | Page<string, GetParamsSchema<string>, QueryParams, readonly any[]>
   | Layout<string, GetParamsSchema<string>, QueryParams, readonly any[]>;
+
+type RouteType = "page" | "layout";
 export interface RouteBase {
-  type: "page" | "layout";
+  type: RouteType;
   path: string | undefined;
   params: AnyParamSchema | undefined;
   query: QueryParams | undefined;
@@ -92,7 +94,7 @@ export const layout = <
 
 export type AllPaths<
   Routes,
-  Type extends AnyRoute["type"]
+  Type extends RouteType
 > = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
     ? Route extends Page<infer Pathname, any, any, infer Children>
@@ -179,8 +181,6 @@ export type SchemaInput<T> = T extends StandardSchemaV1
 type GetParserMapInput<T extends Record<string, Parser<any>>> = {
   [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
 };
-
-const getDynamicRouteKey = (path: string) => path.match(/^\[(.*)\]$/)?.[1];
 
 abstract class TaggedError extends Error {
   abstract readonly _tag: string;
@@ -302,14 +302,35 @@ export class Router<
     this["~routes"] = routes;
   }
 
-  getRouteSchema<const Path extends AllPaths<[Routes], AnyRoute["type"]>>(
+  static fillInPathParams(path: string, params: Record<string, string>) {
+    return path.replace(/\[([^\]]+)\]/g, (_, key) => {
+      const value = params[key];
+      if (value === undefined) {
+        throw new RoutingInternalDefectError({
+          message: `Missing parameter: ${key}`,
+          metaData: {
+            params,
+            path,
+            key,
+          },
+        });
+      }
+      return encodeURIComponent(String(value));
+    });
+  }
+
+  static getDynamicRouteKey(path: string) {
+    return path.match(/^\[(.*)\]$/)?.[1];
+  }
+
+  getRouteSchema<const Path extends AllPaths<[Routes], RouteType>>(
     path: Path
   ):
     | {
         ok: true;
         data: {
           schema: GetRouteSchema<Path, [Routes]>;
-          matchedType: AnyRoute["type"];
+          matchedType: RouteType;
         };
         error?: undefined;
       }
@@ -329,7 +350,7 @@ export class Router<
     let currentRoute: AnyRoute = this["~routes"];
 
     while (true) {
-      const dynamicRouteKey = getDynamicRouteKey(currentRoute.path);
+      const dynamicRouteKey = Router.getDynamicRouteKey(currentRoute.path);
       if (dynamicRouteKey !== undefined) {
         if (currentRoute.params !== undefined) {
           res.params[dynamicRouteKey] = currentRoute.params;
@@ -458,23 +479,6 @@ export class Router<
       ok: true,
       data: url,
     };
-  }
-
-  static fillInPathParams(path: string, params: Record<string, string>) {
-    return path.replace(/\[([^\]]+)\]/g, (_, key) => {
-      const value = params[key];
-      if (value === undefined) {
-        throw new RoutingInternalDefectError({
-          message: `Missing parameter: ${key}`,
-          metaData: {
-            params,
-            path,
-            key,
-          },
-        });
-      }
-      return encodeURIComponent(String(value));
-    });
   }
 
   /** Like {@link route} but throws if the route is not found. */
