@@ -314,7 +314,7 @@ type RouterRouteReturn =
       error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
-type GetRouteSchemaReturn<
+export type GetRouteSchemaReturn<
   Routes extends RouteBase,
   Path extends AllPaths<Routes, RouteType>
 > =
