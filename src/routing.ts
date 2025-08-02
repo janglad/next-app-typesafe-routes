@@ -359,15 +359,24 @@ export class Router<
         }
       }
 
+      // Merge in params of all layouts above this route for both pages and layouts
+
       for (const key of Object.keys(currentRoute.query.layout)) {
         res.query.layout[key] = currentRoute.query.layout[
           key as keyof typeof currentRoute.query.layout
         ] as any;
-      }
-      for (const key of Object.keys(currentRoute.query.page)) {
-        res.query.page[key] = currentRoute.query.page[
-          key as keyof typeof currentRoute.query.page
+        res.query.page[key] = currentRoute.query.layout[
+          key as keyof typeof currentRoute.query.layout
         ] as any;
+      }
+
+      // Page query params are only added for that specific page
+      if (pathSegments.length === 0) {
+        for (const key of Object.keys(currentRoute.query.page)) {
+          res.query.page[key] = currentRoute.query.page[
+            key as keyof typeof currentRoute.query.page
+          ] as any;
+        }
       }
 
       if (pathSegments.length === 0) {

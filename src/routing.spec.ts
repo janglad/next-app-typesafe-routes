@@ -71,11 +71,9 @@ expect.extend({
 
 const routes = page({
   path: "",
-  params: undefined,
   children: [
     page({
       path: "staticNoChildren",
-      params: undefined,
     }),
     page({
       path: "staticPageWithQuery",
@@ -83,19 +81,24 @@ const routes = page({
         page: {
           pageParam: parseAsString,
         },
-        layout: {},
+        layout: {
+          layoutParam: parseAsString,
+        },
       },
+      children: [
+        page({
+          path: "childPage",
+        }),
+      ],
     }),
     layout({
       path: "staticLayout",
-      params: undefined,
       children: [
         page({
           path: "world",
         }),
         layout({
           path: "[layoutParam]",
-          params: undefined,
           children: [
             page({
               path: "world",
@@ -170,6 +173,21 @@ describe("Router", () => {
       args.annotate(JSON.stringify({ route, routes }, null, 2));
       expect(route.data).toHaveExactQueryParams({
         pageParam: "hi",
+      });
+    });
+    it("Should not accept page params for children of that page", (args) => {
+      const route = router.route(
+        "/staticPageWithQuery/childPage",
+        {},
+        {
+          // @ts-expect-error
+          pageParam: "hi",
+          layoutParam: "hi",
+        }
+      );
+      args.annotate(JSON.stringify({ route, routes }, null, 2));
+      expect(route.data).toHaveExactQueryParams({
+        layoutParam: "hi",
       });
     });
   });
