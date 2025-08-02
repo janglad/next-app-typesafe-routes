@@ -360,7 +360,6 @@ export class Router<
       }
 
       // Merge in params of all layouts above this route for both pages and layouts
-
       for (const key of Object.keys(currentRoute.query.layout)) {
         res.query.layout[key] = currentRoute.query.layout[
           key as keyof typeof currentRoute.query.layout
