@@ -230,6 +230,8 @@ class RoutingValidationError extends TaggedError {
   }
 }
 
+export type RoutingNoMatchingRouteErrorType = "noMatch" | "matchedWrongType";
+
 /**
  * Occurs when a given path does not match any route. Given
  * ```ts
@@ -237,18 +239,18 @@ class RoutingValidationError extends TaggedError {
  * ```
  * the path `/not-a-path` would result in an error stating that no matching route was found for `/not-a-path` out of `['hello']`.
  */
-class RoutingNoMatchingRouteError extends TaggedError {
+export class RoutingNoMatchingRouteError extends TaggedError {
   readonly _tag = "RoutingNoMatchingRouteError";
   readonly path: string;
   readonly pathCandidates: readonly string[];
   readonly actual: string;
-  readonly type: "noMatch" | "matchedWrongType";
+  readonly type: RoutingNoMatchingRouteErrorType;
 
   constructor(args: {
     path: string;
     pathCandidates: readonly string[];
     actual: string;
-    type: "noMatch" | "matchedWrongType";
+    type: RoutingNoMatchingRouteErrorType;
   }) {
     super(
       `${
@@ -280,7 +282,7 @@ class RoutingNoMatchingRouteError extends TaggedError {
  * Occurs when the routing library encounters an internal defect. This is a
  * bug in the routing library and should be reported.
  */
-class RoutingInternalDefectError extends TaggedError {
+export class RoutingInternalDefectError extends TaggedError {
   readonly _tag = "RoutingInternalDefectError";
   readonly metaData?: Record<string, unknown>;
 
@@ -468,6 +470,18 @@ export class Router<
     const schemaRes = this.getRouteSchema(path);
     if (schemaRes.ok === false) {
       return schemaRes;
+    }
+
+    if (schemaRes.data.matchedType !== "page") {
+      return {
+        ok: false,
+        error: new RoutingNoMatchingRouteError({
+          path: path,
+          pathCandidates: [path],
+          actual: path,
+          type: "matchedWrongType",
+        }),
+      };
     }
 
     const parsedNonEncodedParams: Record<string, string> = {};
