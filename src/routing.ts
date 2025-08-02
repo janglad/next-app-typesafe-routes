@@ -83,23 +83,25 @@ export const page = <
     page: {};
   },
   const Children extends readonly RouteBase[] = []
->(page: {
-  readonly path: Pathname;
-  readonly params?: ParamsSchema;
-  readonly children?: Children;
-  readonly query?: QueryParamsSchema;
-}): Page<
+>(
+  path: Pathname,
+  config: {
+    readonly params?: ParamsSchema;
+    readonly children?: Children;
+    readonly query?: QueryParamsSchema;
+  } = {}
+): Page<
   Pathname,
   ParamsSchema,
   MakeQueryParamsReturn<QueryParamsSchema>,
   Children
 > => ({
   type: "page",
-  path: page.path,
-  params: page.params as ParamsSchema,
-  children: (page.children ?? []) as Children,
-  query: (page.query
-    ? makeQueryParams(page.query)
+  path: path,
+  params: config.params as ParamsSchema,
+  children: (config.children ?? []) as Children,
+  query: (config.query
+    ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
 });
 
@@ -123,23 +125,25 @@ export const layout = <
     page: {};
   },
   const Children extends readonly RouteBase[] = []
->(layout: {
-  readonly path: Pathname;
-  readonly params?: ParamsSchema;
-  readonly children: Children;
-  readonly query?: QueryParamsSchema;
-}): Layout<
+>(
+  path: Pathname,
+  config: {
+    readonly params?: ParamsSchema;
+    readonly children: Children;
+    readonly query?: QueryParamsSchema;
+  }
+): Layout<
   Pathname,
   ParamsSchema,
   MakeQueryParamsReturn<QueryParamsSchema>,
   Children
 > => ({
   type: "layout",
-  path: layout.path,
-  params: layout.params as ParamsSchema,
-  children: (layout.children ?? []) as Children,
-  query: (layout.query
-    ? makeQueryParams(layout.query)
+  path: path,
+  params: config.params as ParamsSchema,
+  children: (config.children ?? []) as Children,
+  query: (config.query
+    ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
 });
 

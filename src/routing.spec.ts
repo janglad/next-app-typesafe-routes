@@ -12,28 +12,20 @@ import z from "zod";
 import { parseAsString } from "nuqs";
 import { bench } from "@ark/attest";
 
-const routes = page({
-  path: "",
+const routes = page("", {
   children: [
-    layout({
-      path: "staticLayout",
+    layout("staticLayout", {
       children: [
-        layout({
-          path: "[noValidationDynamicLayout]",
+        layout("[noValidationDynamicLayout]", {
           children: [
-            page({
-              path: "staticPage",
-            }),
-            page({
-              path: "[noValidationDynamicPage]",
+            page("staticPage"),
+            page("[noValidationDynamicPage]", {
               children: [
-                page({
-                  path: "[toUpperCase]",
+                page("[toUpperCase]", {
                   params: z.string().transform((val) => val.toUpperCase()),
                 }),
-                page({
-                  path: "[uuid]",
-                  params: z.uuid(),
+                page("[uuid]", {
+                  params: z.string().uuid(),
                 }),
               ],
             }),
@@ -41,8 +33,7 @@ const routes = page({
         }),
       ],
     }),
-    page({
-      path: "staticPageAndLayoutQuery",
+    page("staticPageAndLayoutQuery", {
       query: {
         layout: {
           layoutParam: parseAsString,
@@ -52,8 +43,7 @@ const routes = page({
         },
       },
       children: [
-        page({
-          path: "[dynamicNoValidation]",
+        page("[dynamicNoValidation]", {
           query: {
             page: {
               dynamicPagePageParam: parseAsString,
@@ -65,14 +55,12 @@ const routes = page({
         }),
       ],
     }),
-    page({
-      path: "staticPageWithSharedQuery",
+    page("staticPageWithSharedQuery", {
       query: {
         param1: parseAsString,
       },
       children: [
-        page({
-          path: "staticPageWithSharedQueryChild",
+        page("staticPageWithSharedQueryChild", {
           query: {
             param2: parseAsString,
           },
@@ -211,7 +199,7 @@ describe("Router", () => {
   });
   it("Should not allow routing to non existing routes", (args) => {
     // @ts-expect-error -- this should not be accepted
-    const res = router.route("/staticLayout/notARoute", {}, {});
+    const res = router.route("/staticLayout/notARoute", {});
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.error).toBeDefined();
     expect(res.error?._tag).toEqual("RoutingNoMatchingRouteError");
@@ -234,33 +222,21 @@ describe("Router", () => {
 });
 
 bench("simple route config", () => {
-  page({
-    path: "",
-    children: [
-      page({
-        path: "staticPage",
-      }),
-    ],
+  page("", {
+    children: [page("staticPage")],
   });
 }).types([30, "instantiations"]);
 
 bench("Simple route config with inferred params", () => {
-  page({
-    path: "",
-    children: [
-      page({
-        path: "[dynamicPage]",
-      }),
-    ],
+  page("", {
+    children: [page("[dynamicPage]")],
   });
 }).types([45, "instantiations"]);
 
 bench("Simple route config with query params", () => {
-  page({
-    path: "",
+  page("", {
     children: [
-      page({
-        path: "staticPage",
+      page("staticPage", {
         query: {
           page: {
             pageParam: parseAsString,
@@ -275,27 +251,19 @@ bench("Simple route config with query params", () => {
 }).types([56, "instantiations"]);
 
 bench("Larger route config", () => {
-  page({
-    path: "",
+  page("", {
     children: [
-      layout({
-        path: "staticLayout",
+      layout("staticLayout", {
         children: [
-          layout({
-            path: "[noValidationDynamicLayout]",
+          layout("[noValidationDynamicLayout]", {
             children: [
-              page({
-                path: "staticPage",
-              }),
-              page({
-                path: "[noValidationDynamicPage]",
+              page("staticPage"),
+              page("[noValidationDynamicPage]", {
                 children: [
-                  page({
-                    path: "[toUpperCase]",
+                  page("[toUpperCase]", {
                     params: z.string().transform((val) => val.toUpperCase()),
                   }),
-                  page({
-                    path: "[uuid]",
+                  page("[uuid]", {
                     params: z.string().uuid(),
                   }),
                 ],
@@ -304,8 +272,7 @@ bench("Larger route config", () => {
           }),
         ],
       }),
-      page({
-        path: "staticPageAndLayoutQuery",
+      page("staticPageAndLayoutQuery", {
         query: {
           layout: {
             layoutParam: parseAsString,
@@ -315,8 +282,7 @@ bench("Larger route config", () => {
           },
         },
         children: [
-          page({
-            path: "[dynamicNoValidation]",
+          page("[dynamicNoValidation]", {
             query: {
               page: {
                 dynamicPagePageParam: parseAsString,
@@ -333,25 +299,20 @@ bench("Larger route config", () => {
 }).types([169, "instantiations"]);
 
 bench("Route root page", () => {
-  new Router(page({ path: "" })).route("", {}, {});
+  new Router(page("")).route("", {}, {});
 }).types([715, "instantiations"]);
 
 bench("Route nested dynamic page", () => {
   new Router(
-    layout({
-      path: "",
+    layout("", {
       children: [
-        page({
-          path: "staticLayout",
+        page("staticLayout", {
           children: [
-            layout({
-              path: "[noValidationDynamicLayout]",
+            layout("[noValidationDynamicLayout]", {
               children: [
-                page({
-                  path: "[noValidationDynamicPage]",
+                page("[noValidationDynamicPage]", {
                   children: [
-                    page({
-                      path: "[toUpperCase]",
+                    page("[toUpperCase]", {
                       params: z.string().transform((val) => val.toUpperCase()),
                     }),
                   ],
@@ -374,27 +335,14 @@ bench("Route nested dynamic page", () => {
 }).types([2030, "instantiations"]);
 
 bench("Get all paths for router", () => {
-  const routes = page({
-    path: "",
+  const routes = page("", {
     children: [
-      page({
-        path: "page",
+      page("page"),
+      layout("layout", {
+        children: [page("page")],
       }),
-      layout({
-        path: "layout",
-        children: [
-          page({
-            path: "page",
-          }),
-        ],
-      }),
-      page({
-        path: "[dynamicPage]",
-        children: [
-          page({
-            path: "page",
-          }),
-        ],
+      page("[dynamicPage]", {
+        children: [page("page")],
       }),
     ],
   });
@@ -403,27 +351,19 @@ bench("Get all paths for router", () => {
 }).types([120, "instantiations"]);
 
 bench("Get route schema", () => {
-  page({
-    path: "",
+  page("", {
     children: [
-      layout({
-        path: "staticLayout",
+      layout("staticLayout", {
         children: [
-          layout({
-            path: "[noValidationDynamicLayout]",
+          layout("[noValidationDynamicLayout]", {
             children: [
-              page({
-                path: "staticPage",
-              }),
-              page({
-                path: "[noValidationDynamicPage]",
+              page("staticPage"),
+              page("[noValidationDynamicPage]", {
                 children: [
-                  page({
-                    path: "[toUpperCase]",
+                  page("[toUpperCase]", {
                     params: z.string().transform((val) => val.toUpperCase()),
                   }),
-                  page({
-                    path: "[uuid]",
+                  page("[uuid]", {
                     params: z.string().uuid(),
                   }),
                 ],
@@ -432,8 +372,7 @@ bench("Get route schema", () => {
           }),
         ],
       }),
-      page({
-        path: "staticPageAndLayoutQuery",
+      page("staticPageAndLayoutQuery", {
         query: {
           layout: {
             layoutParam: parseAsString,
@@ -443,8 +382,7 @@ bench("Get route schema", () => {
           },
         },
         children: [
-          page({
-            path: "[dynamicNoValidation]",
+          page("[dynamicNoValidation]", {
             query: {
               page: {
                 dynamicPagePageParam: parseAsString,
