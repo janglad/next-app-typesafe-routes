@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 import {
+  group,
   layout,
   page,
   Router,
@@ -25,7 +26,7 @@ const routes = page("", {
                   params: z.string().transform((val) => val.toUpperCase()),
                 }),
                 page("[uuid]", {
-                  params: z.string().uuid(),
+                  params: z.uuid(),
                 }),
               ],
             }),
@@ -66,6 +67,12 @@ const routes = page("", {
           },
         }),
       ],
+    }),
+    group("(group)", {
+      query: {
+        groupParam: parseAsString,
+      },
+      children: [page("staticPageWithSharedQueryChild")],
     }),
   ],
 });
@@ -219,6 +226,18 @@ describe("Router", () => {
       param2: "param2",
     });
   });
+  it("Should route children of groups correctly", (args) => {
+    const res = router.route(
+      "/(group)/staticPageWithSharedQueryChild",
+      {},
+      { groupParam: "param1" }
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.error).toBeUndefined();
+    expect(res.data).toHaveExactQueryParams({
+      groupParam: "param1",
+    });
+  });
 });
 
 bench("simple route config", () => {
@@ -264,7 +283,7 @@ bench("Larger route config", () => {
                     params: z.string().transform((val) => val.toUpperCase()),
                   }),
                   page("[uuid]", {
-                    params: z.string().uuid(),
+                    params: z.uuid(),
                   }),
                 ],
               }),
@@ -364,7 +383,7 @@ bench("Get route schema", () => {
                     params: z.string().transform((val) => val.toUpperCase()),
                   }),
                   page("[uuid]", {
-                    params: z.string().uuid(),
+                    params: z.uuid(),
                   }),
                 ],
               }),

@@ -19,9 +19,10 @@ interface QueryParams<
 
 type AnyRoute =
   | Page<string, GetParamsSchema<string>, QueryParams, readonly any[]>
-  | Layout<string, GetParamsSchema<string>, QueryParams, readonly any[]>;
+  | Layout<string, GetParamsSchema<string>, QueryParams, readonly any[]>
+  | Group<`(${string})`, readonly any[], QueryParams>;
 
-type RouteType = "page" | "layout";
+type RouteType = "page" | "layout" | "group";
 export interface RouteBase {
   readonly type: RouteType;
   readonly path: string | undefined;
@@ -142,14 +143,57 @@ export const layout = <
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
 });
 
+export interface Group<
+  in out Pathname extends `(${string})`,
+  in out Children extends readonly RouteBase[],
+  in out QueryParamsSchema extends QueryParams
+> extends RouteBase {
+  readonly type: "group";
+  readonly path: Pathname;
+  readonly children: Children;
+  readonly query: QueryParamsSchema;
+  readonly params: undefined;
+}
+
+export const group = <
+  const Pathname extends `(${string})`,
+  const Children extends readonly RouteBase[],
+  const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
+    layout: {};
+    page: {};
+  }
+>(
+  path: Pathname,
+  config: {
+    readonly children: Children;
+    readonly query?: QueryParamsSchema;
+  }
+): Group<Pathname, Children, MakeQueryParamsReturn<QueryParamsSchema>> => ({
+  type: "group",
+  path: path,
+  children: (config.children ?? []) as Children,
+  query: (config.query
+    ? makeQueryParams(config.query)
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+  params: undefined,
+});
+
 export type AllPaths<
   Routes,
   Type extends RouteType
 > = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
-    ? Route extends Page<infer Pathname, any, any, infer Children>
+    ? Route extends {
+        type: "page";
+        path: infer Pathname extends string;
+        children: infer Children;
+      }
       ? Pathname | `${Pathname}/${AllPaths<Children, Type>}`
-      : Route extends Layout<infer Pathname, any, any, infer Children>
+      : Route extends {
+          type: "layout" | "group";
+          path: infer Pathname extends string;
+          children: infer Children;
+        }
       ?
           | `${Pathname}/${AllPaths<Children, Type>}`
           | (Type extends "layout" ? Pathname : never)
