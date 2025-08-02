@@ -338,14 +338,17 @@ export class Router<
     this["~routes"] = routes;
   }
 
-  static fillInPathParams(path: string, params: Record<string, string>) {
+  static fillInPathParams(
+    path: string,
+    nonEncodedParams: Record<string, string>
+  ) {
     return path.replace(/\[([^\]]+)\]/g, (_, key) => {
-      const value = params[key];
+      const value = nonEncodedParams[key];
       if (value === undefined) {
         throw new RoutingInternalDefectError({
           message: `Missing parameter: ${key}`,
           metaData: {
-            params,
+            params: nonEncodedParams,
             path,
             key,
           },
@@ -467,7 +470,7 @@ export class Router<
       return schemaRes;
     }
 
-    const parsedParams: Record<string, string> = {};
+    const parsedNonEncodedParams: Record<string, string> = {};
 
     for (const dynamicRouteKey of Object.keys(schemaRes.data.schema.params)) {
       const paramsSchema: StandardSchemaV1<string> | undefined =
@@ -476,9 +479,9 @@ export class Router<
         ];
 
       if (paramsSchema === undefined) {
-        parsedParams[dynamicRouteKey] = encodeURIComponent(
-          params[dynamicRouteKey as keyof typeof params] as string
-        );
+        parsedNonEncodedParams[dynamicRouteKey] = params[
+          dynamicRouteKey as keyof typeof params
+        ] as string;
       } else {
         const parseRes = (paramsSchema as StandardSchemaV1<string>)[
           "~standard"
@@ -499,11 +502,11 @@ export class Router<
             }),
           };
         }
-        parsedParams[dynamicRouteKey] = encodeURIComponent(parseRes.value);
+        parsedNonEncodedParams[dynamicRouteKey] = parseRes.value;
       }
     }
 
-    const urlWithParams = Router.fillInPathParams(path, parsedParams);
+    const urlWithParams = Router.fillInPathParams(path, parsedNonEncodedParams);
     const serializer = createSerializer(schemaRes.data.schema.query.page);
     const queryString = serializer(query);
     const url = `${urlWithParams}${queryString}`;
