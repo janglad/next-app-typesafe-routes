@@ -184,19 +184,13 @@ export type AllPaths<
 > = Routes extends readonly unknown[]
   ? Routes[number] extends infer Route
     ? Route extends {
-        type: "page";
+        type: infer PathType;
         path: infer Pathname extends string;
         children: infer Children;
       }
-      ? Pathname | `${Pathname}/${AllPaths<Children, Type>}`
-      : Route extends {
-          type: "layout" | "group";
-          path: infer Pathname extends string;
-          children: infer Children;
-        }
       ?
+          | (PathType extends "page" ? Pathname : never)
           | `${Pathname}/${AllPaths<Children, Type>}`
-          | (Type extends "layout" ? Pathname : never)
       : never
     : never
   : never;

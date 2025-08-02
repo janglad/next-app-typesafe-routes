@@ -319,7 +319,7 @@ bench("Larger route config", () => {
 
 bench("Route root page", () => {
   new Router(page("")).route("", {}, {});
-}).types([686, "instantiations"]);
+}).types([676, "instantiations"]);
 
 bench("Route nested dynamic page", () => {
   new Router(
@@ -351,7 +351,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([1907, "instantiations"]);
+}).types([1874, "instantiations"]);
 
 bench("Get all paths for router", () => {
   const routes = page("", {
@@ -419,4 +419,4 @@ bench("Get route schema", () => {
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     [typeof routes]
   >;
-}).types([604, "instantiations"]);
+}).types([627, "instantiations"]);
