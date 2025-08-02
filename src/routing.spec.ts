@@ -10,7 +10,7 @@ import {
   type RoutingNoMatchingRouteErrorType,
 } from "./routing.js";
 import z from "zod";
-import { parseAsString } from "nuqs";
+import { parseAsString, parseAsStringEnum } from "nuqs";
 import { bench } from "@ark/attest";
 
 const routes = page("", {

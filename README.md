@@ -9,7 +9,6 @@ Simple type safe routing for Next.js app router
 ### Features
 
 - [ ] Figure out best way to handle parsing props on server/client (wrap client side hooks?)
-- [ ] Add support for route groups
 - [ ] Look into parallel/intercepting routes
 - [ ] Add support for catch all routes (e.g. `[...path]`)
 - [ ] Think about API of passing info (one big object, optional stuff etc)
@@ -22,31 +21,48 @@ Simple type safe routing for Next.js app router
 ## Example
 
 ```ts
-const routes = layout({
-  path: "",
-  children: [
-    layout({ path: "hello" }),
-    page({ path: "[userId]", schema: z.string().uuid().brand("userId") }),
-  ],
-});
+const router = new Router(
+  page("", {
+    children: [
+      // Route group - not part of actual URL
+      group("(auth)", {
+        // Defined with NUQS, will be available to all children of this group
+        query: {
+          email: parseAsString,
+        },
+        children: [page("sign-in"), page("sign-up")],
+      }),
+      layout("orders", {
+        // [path] notation is a dynamic route, automatically inferred as string
+        children: [page("[orderId]", { children: [page("tracking-details")] })],
+      }),
+      // Use a page + children when you have both a layout and a page on a route
+      page("items", {
+        query: {
+          // These are only available on the /items page and will not be shared with children
+          page: {
+            sortOn: parseAsStringEnum(["name", "price"]),
+            sortOrder: parseAsStringEnum(["asc", "desc"]),
+          },
+          // These would be available on /items and all children of /items
+          layout: {},
+        },
+        // dynamic routes can optionally define a StandardSchema
+        children: [page("[itemId]", { params: z.uuid() })],
+      }),
+    ],
+  })
+);
 
-const router = new Router(routes);
+// /sign-in?email=test@test.com (with URI encoding)
+router.route("/sign-in", {}, { email: "test@test.com" });
 
-router.route("/hi/[userId]", { userId: "1213" });
-// type error: not a valid route
-router.route("/hello/[userId]", { userId: "1213" });
-// error: not a valid UUID
-router.route("/hello/[userId]", {
-  userId: "359bd75c-b3b8-4119-a6c8-1cff9c1cbd19",
-});
-// /hello/359bd75c-b3b8-4119-a6c8-1cff9c1cbd19
+// Type error: not a valid route. Should be /sign-up
+router.route("signUp", {}, { email: "test@test.com" });
+
+// Type error: missing param itemId
+router.route("/items/[itemId]", {}, {});
+
+// Runtime error: not a valid UUID
+router.route("/items/[itemId]", { itemId: "123" }, {});
 ```
-
-## Define routes
-
-There are 2 types of routes
-
-- `layout`: indicating the path can not be navigated to
-- `page`: indicating the path can be navigated to. When you define both a layout and a page on a route, you should define it as a singular page here.
-
-Each route should define a `path` and can define `children`, which are an array of `layout` or `page`. When the route's path matches `[pathName]`, it will be treated as a dynamic route and will require `{ pathName: string }` as a parameter when navigating to it. You can optionally define a `schema` for this parameter, which can be any `StandardSchema` that extends `string`.
