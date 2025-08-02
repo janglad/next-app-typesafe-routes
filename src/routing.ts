@@ -21,11 +21,11 @@ type AnyRoute =
 
 type RouteType = "page" | "layout";
 export interface RouteBase {
-  type: RouteType;
-  path: string | undefined;
-  params: AnyParamSchema | undefined;
-  query: QueryParams | undefined;
-  children: readonly RouteBase[];
+  readonly type: RouteType;
+  readonly path: string | undefined;
+  readonly params: AnyParamSchema | undefined;
+  readonly query: QueryParams | undefined;
+  readonly children: readonly RouteBase[];
 }
 
 type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
@@ -38,11 +38,11 @@ export interface Page<
   in out QueryParamSchema extends QueryParams,
   in out Children extends readonly RouteBase[]
 > extends RouteBase {
-  type: "page";
-  path: Pathname;
-  params: ParamSchema;
-  children: Children;
-  query: QueryParamSchema;
+  readonly type: "page";
+  readonly path: Pathname;
+  readonly params: ParamSchema;
+  readonly children: Children;
+  readonly query: QueryParamSchema;
 }
 export const page = <
   const Pathname extends string,
@@ -50,10 +50,10 @@ export const page = <
   const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
   const Children extends readonly RouteBase[] = []
 >(page: {
-  path: Pathname;
-  params?: ParamsSchema;
-  children?: Children;
-  query?: QueryParamsSchema;
+  readonly path: Pathname;
+  readonly params?: ParamsSchema;
+  readonly children?: Children;
+  readonly query?: QueryParamsSchema;
 }): Page<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
   type: "page",
   path: page.path,
@@ -68,11 +68,11 @@ export interface Layout<
   in out QueryParamsSchema extends QueryParams,
   in out Children extends readonly RouteBase[]
 > extends RouteBase {
-  type: "layout";
-  path: Pathname;
-  params: ParamsSchema;
-  children: Children;
-  query: QueryParamsSchema;
+  readonly type: "layout";
+  readonly path: Pathname;
+  readonly params: ParamsSchema;
+  readonly children: Children;
+  readonly query: QueryParamsSchema;
 }
 export const layout = <
   const Pathname extends string,
@@ -80,10 +80,10 @@ export const layout = <
   const QueryParamsSchema extends QueryParams = { layout: {}; page: {} },
   const Children extends readonly RouteBase[] = []
 >(layout: {
-  path: Pathname;
-  params?: ParamsSchema;
-  children: Children;
-  query?: QueryParamsSchema;
+  readonly path: Pathname;
+  readonly params?: ParamsSchema;
+  readonly children: Children;
+  readonly query?: QueryParamsSchema;
 }): Layout<Pathname, ParamsSchema, QueryParamsSchema, Children> => ({
   type: "layout",
   path: layout.path,
@@ -180,6 +180,12 @@ export type SchemaInput<T> = T extends StandardSchemaV1
 
 type GetParserMapInput<T extends Record<string, Parser<any>>> = {
   [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
+};
+
+type GetParamMapInput<ParamSchema> = {
+  [K in keyof ParamSchema]: ParamSchema[K] extends AnyParamSchema
+    ? SchemaInput<ParamSchema[K]>
+    : never;
 };
 
 abstract class TaggedError extends Error {
@@ -293,6 +299,18 @@ class RoutingInternalDefectError extends TaggedError {
     );
   }
 }
+
+type RouterRouteReturn =
+  | {
+      ok: true;
+      data: string;
+      error?: undefined;
+    }
+  | {
+      ok: false;
+      data?: undefined;
+      error: RoutingValidationError | RoutingNoMatchingRouteError;
+    };
 
 export class Router<
   in out Routes extends Page<"", any, any, any> | Layout<"", any, any, any>
@@ -422,21 +440,9 @@ export class Router<
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
     path: Path,
-    params: {
-      [K in keyof RouteSchema["params"]]: SchemaInput<RouteSchema["params"][K]>;
-    },
+    params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
-  ):
-    | {
-        ok: true;
-        data: string;
-        error?: undefined;
-      }
-    | {
-        ok: false;
-        data?: undefined;
-        error: RoutingValidationError | RoutingNoMatchingRouteError;
-      } {
+  ): RouterRouteReturn {
     const schemaRes = this.getRouteSchema(path);
     if (schemaRes.ok === false) {
       return schemaRes;
@@ -492,16 +498,11 @@ export class Router<
   /** Like {@link route} but throws if the route is not found. */
   routeUnsafe<
     const Path extends AllPaths<[Routes], "page">,
-    ParamsSchema extends GetRouteSchema<
-      Path,
-      [Routes]
-    >["params"] = GetRouteSchema<Path, [Routes]>["params"]
+    const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
     path: Path,
-    params: {
-      [K in keyof ParamsSchema]: SchemaInput<ParamsSchema[K]>;
-    },
-    query: GetParserMapInput<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+    params: GetParamMapInput<RouteSchema["params"]>,
+    query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
     const res = this.route(path, params, query);
     if (res.ok) {
@@ -512,13 +513,9 @@ export class Router<
 
   makeParser<Path extends AllPaths<[Routes], "page">>(
     path: Path
-  ): (
-    params: {
-      [K in keyof GetRouteSchema<Path, [Routes]>["params"]]: SchemaInput<
-        GetRouteSchema<Path, [Routes]>["params"][K]
-      >;
-    },
-    query: GetParserMapInput<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+  ): <const RouteSchema extends GetRouteSchema<Path, [Routes]>>(
+    params: GetParamMapInput<RouteSchema["params"]>,
+    query: GetParserMapInput<RouteSchema["query"]["page"]>
   ) => string {
     return (params, query) => this.routeUnsafe(path, params, query);
   }
