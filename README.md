@@ -55,10 +55,10 @@ const router = new Router(
 );
 
 // /sign-in?email=test@test.com (with URI encoding)
-router.route("/sign-in", {}, { email: "test@test.com" });
+router.route("/(auth)/sign-in", {}, { email: "test@test.com" });
 
-// Type error: not a valid route. Should be /sign-up
-router.route("signUp", {}, { email: "test@test.com" });
+// Type error: not a valid route. Should be /sign-in
+router.route("/(auth)/signIn", {}, { email: "test@test.com" });
 
 // Type error: missing param itemId
 router.route("/items/[itemId]", {}, {});
