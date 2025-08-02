@@ -312,6 +312,24 @@ type RouterRouteReturn =
       error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
+type GetRouteSchemaReturn<
+  Routes extends RouteBase,
+  Path extends AllPaths<Routes, RouteType>
+> =
+  | {
+      ok: true;
+      data: {
+        schema: GetRouteSchema<Path, [Routes]>;
+        matchedType: RouteType;
+      };
+      error?: undefined;
+    }
+  | {
+      ok: false;
+      data?: undefined;
+      error: RoutingNoMatchingRouteError;
+    };
+
 export class Router<
   in out Routes extends Page<"", any, any, any> | Layout<"", any, any, any>
 > {
@@ -343,20 +361,7 @@ export class Router<
 
   getRouteSchema<const Path extends AllPaths<[Routes], RouteType>>(
     path: Path
-  ):
-    | {
-        ok: true;
-        data: {
-          schema: GetRouteSchema<Path, [Routes]>;
-          matchedType: RouteType;
-        };
-        error?: undefined;
-      }
-    | {
-        ok: false;
-        data?: undefined;
-        error: RoutingNoMatchingRouteError;
-      } {
+  ): GetRouteSchemaReturn<Routes, Path> {
     const res = {
       params: {} as Record<string, AnyParamSchema | undefined>,
       query: {
