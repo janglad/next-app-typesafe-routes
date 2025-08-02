@@ -13,8 +13,8 @@ interface QueryParams<
   Layout extends QueryParamParserMap<any> = {},
   Page extends QueryParamParserMap<any> = {}
 > {
-  layout: Layout;
-  page: Page;
+  readonly layout: Layout;
+  readonly page: Page;
 }
 
 type AnyRoute =
@@ -165,7 +165,7 @@ type ParamSchemaMap<
 > = ParamKey<RoutePathName> extends never
   ? {}
   : {
-      [K in ParamKey<RoutePathName>]: RouteParamSchema extends undefined
+      readonly [K in ParamKey<RoutePathName>]: RouteParamSchema extends undefined
         ? StandardSchemaV1<string>
         : RouteParamSchema;
     };
@@ -173,7 +173,7 @@ type ParamSchemaMap<
 type GetMatchingRoute<
   Pathname extends string,
   Routes extends readonly RouteBase[]
-> = Extract<Routes[number], { path: Pathname }>;
+> = Extract<Routes[number], { readonly path: Pathname }>;
 
 type GetPageQueryParamsSchema<T> = T extends QueryParams ? T["page"] : {};
 type GetLayoutQueryParamsSchema<T> = T extends QueryParams ? T["layout"] : {};
@@ -229,11 +229,11 @@ export type SchemaInput<T> = T extends StandardSchemaV1
   : never;
 
 type GetParserMapInput<T extends Record<string, Parser<any>>> = {
-  [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
+  readonly [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
 };
 
 type GetParamMapInput<ParamSchema> = {
-  [K in keyof ParamSchema]: ParamSchema[K] extends AnyParamSchema
+  readonly [K in keyof ParamSchema]: ParamSchema[K] extends AnyParamSchema
     ? SchemaInput<ParamSchema[K]>
     : never;
 };
@@ -297,10 +297,10 @@ export class RoutingNoMatchingRouteError extends TaggedError {
   readonly type: RoutingNoMatchingRouteErrorType;
 
   constructor(args: {
-    path: string;
-    pathCandidates: readonly string[];
-    actual: string;
-    type: RoutingNoMatchingRouteErrorType;
+    readonly path: string;
+    readonly pathCandidates: readonly string[];
+    readonly actual: string;
+    readonly type: RoutingNoMatchingRouteErrorType;
   }) {
     super(
       `${
@@ -354,14 +354,14 @@ export class RoutingInternalDefectError extends TaggedError {
 
 type RouterRouteReturn =
   | {
-      ok: true;
-      data: string;
-      error?: undefined;
+      readonly ok: true;
+      readonly data: string;
+      readonly error?: undefined;
     }
   | {
-      ok: false;
-      data?: undefined;
-      error: RoutingValidationError | RoutingNoMatchingRouteError;
+      readonly ok: false;
+      readonly data?: undefined;
+      readonly error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
 export type GetRouteSchemaReturn<
@@ -369,17 +369,17 @@ export type GetRouteSchemaReturn<
   Path extends AllPaths<Routes, RouteType>
 > =
   | {
-      ok: true;
-      data: {
-        schema: GetRouteSchema<Path, [Routes]>;
-        matchedType: RouteType;
+      readonly ok: true;
+      readonly data: {
+        readonly schema: GetRouteSchema<Path, [Routes]>;
+        readonly matchedType: RouteType;
       };
-      error?: undefined;
+      readonly error?: undefined;
     }
   | {
-      ok: false;
-      data?: undefined;
-      error: RoutingNoMatchingRouteError;
+      readonly ok: false;
+      readonly data?: undefined;
+      readonly error: RoutingNoMatchingRouteError;
     };
 
 export class Router<
