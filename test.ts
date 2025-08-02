@@ -1,6 +1,6 @@
-import * as z from "zod";
-import { layout, page, Router, type GetRouteSchema } from "./src/routing.js";
 import { parseAsString } from "nuqs";
+import * as z from "zod";
+import { layout, page, Router } from "./src/routing.js";
 
 const routes = layout({
   path: "",
