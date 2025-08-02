@@ -2,7 +2,24 @@ Simple type safe routing for Next.js app router
 
 ## Todo
 
-- [ ] Implement query params (with nuqs?)
+### Bugs
+
+- [ ] Fix type issue with `{}` on paths without params
+
+### Features
+
+- [ ] Figure out best way to handle parsing props on server/client (wrap client side hooks?)
+- [ ] Add support for route groups
+- [ ] Look into parallel/intercepting routes
+- [ ] Add support for catch all routes (e.g. `[...path]`)
+- [ ] Think about API of passing info (one big object, optional stuff etc)
+- [ ] Don't require both `layout` and `page` to be passed for `query`
+- [ ] Remove `page` on `query` for `layout` routes
+
+### Testing
+
+- [ ] Type tests (incl performance tests)
+- [ ] Runtime performance tests
 
 ## Example
 
@@ -17,10 +34,10 @@ const routes = layout({
 
 const router = new Router(routes);
 
-// error: not a valid UUID
 router.route("/hi/[userId]", { userId: "1213" });
 // type error: not a valid route
 router.route("/hello/[userId]", { userId: "1213" });
+// error: not a valid UUID
 router.route("/hello/[userId]", {
   userId: "359bd75c-b3b8-4119-a6c8-1cff9c1cbd19",
 });
