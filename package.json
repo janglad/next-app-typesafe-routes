@@ -14,9 +14,9 @@
   "license": "ISC",
   "packageManager": "pnpm@10.12.4",
   "devDependencies": {
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4",
-    "@ark/attest": "^0.48.2"
+    "@ark/attest": "^0.48.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "nuqs": "^2.4.3",

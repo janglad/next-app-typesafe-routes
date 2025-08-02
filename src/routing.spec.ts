@@ -225,13 +225,13 @@ bench("simple route config", () => {
   page("", {
     children: [page("staticPage")],
   });
-}).types([31, "instantiations"]);
+}).types([28, "instantiations"]);
 
 bench("Simple route config with inferred params", () => {
   page("", {
     children: [page("[dynamicPage]")],
   });
-}).types([46, "instantiations"]);
+}).types([43, "instantiations"]);
 
 bench("Simple route config with query params", () => {
   page("", {
@@ -248,7 +248,7 @@ bench("Simple route config with query params", () => {
       }),
     ],
   });
-}).types([60, "instantiations"]);
+}).types([52, "instantiations"]);
 
 bench("Larger route config", () => {
   page("", {
@@ -296,11 +296,11 @@ bench("Larger route config", () => {
       }),
     ],
   });
-}).types([181, "instantiations"]);
+}).types([158, "instantiations"]);
 
 bench("Route root page", () => {
   new Router(page("")).route("", {}, {});
-}).types([713, "instantiations"]);
+}).types([686, "instantiations"]);
 
 bench("Route nested dynamic page", () => {
   new Router(
@@ -332,7 +332,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([2035, "instantiations"]);
+}).types([1907, "instantiations"]);
 
 bench("Get all paths for router", () => {
   const routes = page("", {
@@ -348,7 +348,7 @@ bench("Get all paths for router", () => {
   });
 
   const val = "" as AllPaths<typeof routes, "page">;
-}).types([125, "instantiations"]);
+}).types([119, "instantiations"]);
 
 bench("Get route schema", () => {
   page("", {
@@ -400,4 +400,4 @@ bench("Get route schema", () => {
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     [typeof routes]
   >;
-}).types([645, "instantiations"]);
+}).types([604, "instantiations"]);
