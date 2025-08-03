@@ -728,18 +728,16 @@ export class Router<
 
   implementPage<Path extends AllPaths<[Routes], "page">>(
     path: Path,
-    implementation: StaticPageImplementationPageImplementation<[Routes], Path>
+    implementation: StaticPageImplementation<[Routes], Path>
   ): (props: UnparsedAsyncPageProps) => ReactNode;
-
   implementPage<Path extends AllPaths<[Routes], "page">>(
     path: Path,
     implementation: DynamicPageImplementation<[Routes], Path>
   ): (props: UnparsedAsyncPageProps) => Promise<ReactNode>;
-
   implementPage<Path extends AllPaths<[Routes], "page">>(
     path: Path,
     implementation:
-      | StaticPageImplementationPageImplementation<[Routes], Path>
+      | StaticPageImplementation<[Routes], Path>
       | DynamicPageImplementation<[Routes], Path>
   ): (props: UnparsedAsyncPageProps) => ReactNode | Promise<ReactNode> {
     const safeParser = async (props: UnparsedAsyncPageProps) => {
@@ -796,7 +794,7 @@ interface UnsafeSerializer<
   ): string;
 }
 
-interface StaticPageImplementationPageImplementation<
+interface StaticPageImplementation<
   in out Routes extends readonly AnyRoute[],
   in out Path extends AllPaths<[Routes], "page">,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
@@ -882,17 +880,17 @@ type ParserReturn<
   RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
 > =
   | {
-      ok: true;
-      data: {
+      readonly ok: true;
+      readonly data: {
         readonly params: RouteParamsOutput<RouteSchema>;
         readonly query: RouteQueryOutput<RouteSchema>;
       };
-      error?: undefined;
+      readonly error?: undefined;
     }
   | {
-      ok: false;
-      data?: undefined;
-      error: RoutingValidationError | RoutingNoMatchingRouteError;
+      readonly ok: false;
+      readonly data?: undefined;
+      readonly error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
 interface ParseUnsafeReturn<

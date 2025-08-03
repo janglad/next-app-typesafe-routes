@@ -20,7 +20,7 @@ Simple type safe routing for Next.js app router
 
 ## Example
 
-```ts
+```tsx
 const router = new Router(
   page("", {
     children: [
@@ -65,4 +65,12 @@ router.route("/items/[itemId]", {}, {});
 
 // Runtime error: not a valid UUID
 router.route("/items/[itemId]", { itemId: "123" }, {});
+
+export default signInPage = router.implementPage(
+  "/(auth)/sign-in",
+  async (props) => {
+    const { query } = await props.parseUnsafe();
+    return <div>{query.email}</div>;
+  }
+);
 ```

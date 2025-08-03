@@ -468,8 +468,8 @@ bench("Get all paths for router", () => {
     ],
   });
 
-  const val = "" as AllPaths<typeof routes, "page">;
-}).types([119, "instantiations"]);
+  const val = "" as AllPaths<[typeof routes], "page">;
+}).types([253, "instantiations"]);
 
 bench("Get route schema", () => {
   page("", {
