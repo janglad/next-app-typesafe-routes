@@ -156,6 +156,7 @@ describe("Router", () => {
       }
     );
     args.annotate(JSON.stringify(res, null, 2));
+    expect(res.data?.startsWith("/staticPageAndLayoutQuery")).toBe(true);
     expect(res.error).toBeUndefined();
     expect(res.data).toHaveExactQueryParams({
       layoutParam: "param1",
@@ -178,6 +179,7 @@ describe("Router", () => {
     );
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.error).toBeUndefined();
+    expect(res.data?.startsWith("/staticPageAndLayoutQuery/param1")).toBe(true);
     expect(res.data).toHaveExactQueryParams({
       layoutParam: "param2",
       dynamicPagePageParam: "param4",
@@ -221,6 +223,11 @@ describe("Router", () => {
     );
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.error).toBeUndefined();
+    expect(
+      res.data?.startsWith(
+        "/staticPageWithSharedQuery/staticPageWithSharedQueryChild"
+      )
+    ).toBe(true);
     expect(res.data).toHaveExactQueryParams({
       param1: "param1",
       param2: "param2",
@@ -233,6 +240,7 @@ describe("Router", () => {
       { groupParam: "param1" }
     );
     args.annotate(JSON.stringify(res, null, 2));
+    expect(res.data?.startsWith("/staticPageWithSharedQueryChild")).toBe(true);
     expect(res.error).toBeUndefined();
     expect(res.data).toHaveExactQueryParams({
       groupParam: "param1",

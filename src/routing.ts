@@ -448,6 +448,10 @@ export class Router<
     });
   }
 
+  static stripGroups(path: string) {
+    return path.replace(/\/?\(\w+\)/g, "");
+  }
+
   static getDynamicRouteKey(path: string) {
     return path.match(/^\[(.*)\]$/)?.[1];
   }
@@ -609,9 +613,10 @@ export class Router<
     }
 
     const urlWithParams = Router.fillInPathParams(path, parsedNonEncodedParams);
+    const urlWithParamsWithoutGroups = Router.stripGroups(urlWithParams);
     const serializer = createSerializer(schemaRes.data.schema.query.page);
     const queryString = serializer(query);
-    const url = `${urlWithParams}${queryString}`;
+    const url = `${urlWithParamsWithoutGroups}${queryString}`;
 
     return {
       ok: true,
