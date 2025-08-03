@@ -31,11 +31,11 @@
     "@ark/attest": "^0.48.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "zod": "^4.0.10"
   },
   "peerDependencies": {
-    "nuqs": "^2.4.3",
-    "zod": "^4.0.10"
+    "nuqs": "^2.4.3"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0"
