@@ -12,6 +12,7 @@ Simple type safe routing for Next.js app router
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Remove `page` on `query` for `layout` routes
 - [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
+- [ ] Support symmetric parsing of params
 
 ### Testing
 

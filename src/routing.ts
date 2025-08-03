@@ -202,7 +202,7 @@ export type AllPaths<
         children: infer Children;
       }
       ?
-          | (PathType extends "page" ? Pathname : never)
+          | (PathType extends Type ? Pathname : never)
           | `${Pathname}/${AllPaths<Children, Type>}`
       : never
     : never
