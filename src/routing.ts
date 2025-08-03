@@ -428,7 +428,7 @@ export class Router<
     this["~routes"] = routes;
   }
 
-  static fillInPathParams(
+  static ["~fillInPathParams"](
     path: string,
     nonEncodedParams: Record<string, string>
   ) {
@@ -448,11 +448,11 @@ export class Router<
     });
   }
 
-  static stripGroups(path: string) {
+  static ["~stripGroups"](path: string) {
     return path.replace(/\/?\(\w+\)/g, "");
   }
 
-  static getDynamicRouteKey(path: string) {
+  static ["~getDynamicRouteKey"](path: string) {
     return path.match(/^\[(.*)\]$/)?.[1];
   }
 
@@ -480,7 +480,7 @@ export class Router<
     let currentRoute: AnyRoute = this["~routes"];
 
     while (true) {
-      const dynamicRouteKey = Router.getDynamicRouteKey(currentRoute.path);
+      const dynamicRouteKey = Router["~getDynamicRouteKey"](currentRoute.path);
       if (dynamicRouteKey !== undefined) {
         if (currentRoute.params !== undefined) {
           res.params[dynamicRouteKey] = currentRoute.params;
@@ -612,8 +612,11 @@ export class Router<
       }
     }
 
-    const urlWithParams = Router.fillInPathParams(path, parsedNonEncodedParams);
-    const urlWithParamsWithoutGroups = Router.stripGroups(urlWithParams);
+    const urlWithParams = Router["~fillInPathParams"](
+      path,
+      parsedNonEncodedParams
+    );
+    const urlWithParamsWithoutGroups = Router["~stripGroups"](urlWithParams);
     const serializer = createSerializer(schemaRes.data.schema.query.page);
     const queryString = serializer(query);
     const url = `${urlWithParamsWithoutGroups}${queryString}`;
@@ -640,12 +643,21 @@ export class Router<
     throw res.error;
   }
 
-  makeParser<Path extends AllPaths<[Routes], "page">>(
+  makeUnsafeParser<Path extends AllPaths<[Routes], "page">>(
     path: Path
   ): <const RouteSchema extends GetRouteSchema<Path, [Routes]>>(
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ) => string {
     return (params, query) => this.routeUnsafe(path, params, query);
+  }
+
+  makeParser<Path extends AllPaths<[Routes], "page">>(
+    path: Path
+  ): <const RouteSchema extends GetRouteSchema<Path, [Routes]>>(
+    params: GetParamMapInput<RouteSchema["params"]>,
+    query: GetParserMapInput<RouteSchema["query"]["page"]>
+  ) => RouterRouteReturn {
+    return (params, query) => this.route(path, params, query);
   }
 }
