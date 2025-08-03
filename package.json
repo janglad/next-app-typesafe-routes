@@ -15,6 +15,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "vitest run",
+    "bench": "tsx src/routing.bench.ts",
     "test:withTypes": "vitest run",
     "typecheck": "tsc --noEmit --diagnostics",
     "test:watch": "ATTEST_skipTypes=1 vitest"
@@ -35,6 +36,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tsup": "^8.5.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "zod": "^4.0.10"
