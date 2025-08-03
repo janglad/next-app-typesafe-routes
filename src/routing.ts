@@ -767,7 +767,7 @@ export class Router<
     return (props: UnparsedAsyncPageProps) => {
       const safeParseScoped = () => safeParser(props);
       const unsafeParseScoped = () => unsafeParser(props);
-      return implementation(path, {
+      return implementation({
         props,
         parse: safeParseScoped,
         parseUnsafe: unsafeParseScoped,
@@ -804,14 +804,11 @@ interface StaticPageImplementationPageImplementation<
     Routes
   >
 > {
-  (
-    path: Path,
-    args: {
-      props: UnparsedAsyncPageProps;
-      parse: PageImplParser<Routes, Path, RouteSchema>;
-      parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
-    }
-  ): ReactNode;
+  (args: {
+    props: UnparsedAsyncPageProps;
+    parse: PageImplParser<Routes, Path, RouteSchema>;
+    parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+  }): ReactNode;
 }
 
 interface DynamicPageImplementation<
@@ -822,14 +819,11 @@ interface DynamicPageImplementation<
     Routes
   >
 > {
-  (
-    path: Path,
-    args: {
-      props: UnparsedAsyncPageProps;
-      parse: PageImplParser<Routes, Path, RouteSchema>;
-      parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
-    }
-  ): Promise<ReactNode>;
+  (args: {
+    props: UnparsedAsyncPageProps;
+    parse: PageImplParser<Routes, Path, RouteSchema>;
+    parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+  }): Promise<ReactNode>;
 }
 interface LayoutImplementation<
   in out Routes extends readonly AnyRoute[],
@@ -865,7 +859,9 @@ interface UnparsedLayoutProps extends UnparsedAsyncPageProps {
 
 type RouteParamsOutput<
   RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
-> = SchemaOutput<RouteSchema["params"]>;
+> = {
+  [K in keyof RouteSchema["params"]]: SchemaOutput<RouteSchema["params"][K]>;
+};
 
 type RouteQueryOutput<
   RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>

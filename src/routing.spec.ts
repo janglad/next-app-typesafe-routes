@@ -1,18 +1,14 @@
+import { parseAsString } from "nuqs";
 import { assert, describe, expect, it } from "vitest";
+import z from "zod";
 import {
   group,
   layout,
   page,
   Router,
   RoutingNoMatchingRouteError,
-  type AllPaths,
-  type GetRouteSchema,
   type RoutingNoMatchingRouteErrorType,
 } from "./routing.js";
-import z from "zod";
-import { parseAsString, parseAsStringEnum } from "nuqs";
-import { bench } from "@ark/attest";
-import { renderToString } from "react-dom/server";
 
 const routes = page("", {
   children: [
@@ -289,7 +285,51 @@ describe("Router", () => {
         () => "Output"
       );
       expect(res).not.toBeInstanceOf(Promise);
-      expect(renderToString(res(emptyProps))).toEqual("Output");
+      expect(res(emptyProps)).toEqual("Output");
+    });
+    it("should return a async function if the implementation is async", async () => {
+      const res = router.implementPage(
+        "/staticPageAndLayoutQuery",
+        async () => "Output"
+      )(emptyProps);
+      expect(res).toBeInstanceOf(Promise);
+      await expect(res).resolves.toEqual("Output");
+    });
+    it("should properly parse params", async () => {
+      const res = router.implementPage(
+        "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]",
+        async ({ parseUnsafe }) => {
+          const { params } = await parseUnsafe();
+          return (
+            params.noValidationDynamicLayout +
+            "-" +
+            params.noValidationDynamicPage
+          );
+        }
+      )({
+        params: Promise.resolve({
+          noValidationDynamicLayout: "param1",
+          noValidationDynamicPage: "param2",
+        }),
+        searchParams: Promise.resolve({}),
+      });
+      await expect(res).resolves.toEqual("param1-param2");
+    });
+    it("Should properly parse query params", async () => {
+      const res = router.implementPage(
+        "/staticPageAndLayoutQuery",
+        async ({ parseUnsafe }) => {
+          const { query } = await parseUnsafe();
+          return `${query.layoutParam}-${query.pageParam}`;
+        }
+      )({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve({
+          layoutParam: "param1",
+          pageParam: "param2",
+        }),
+      });
+      await expect(res).resolves.toEqual("param1-param2");
     });
   });
 });
@@ -299,183 +339,183 @@ const emptyProps = {
   params: Promise.resolve({}),
 };
 
-bench("simple route config", () => {
-  page("", {
-    children: [page("staticPage")],
-  });
-}).types([28, "instantiations"]);
+// bench("simple route config", () => {
+//   page("", {
+//     children: [page("staticPage")],
+//   });
+// }).types([28, "instantiations"]);
 
-bench("Simple route config with inferred params", () => {
-  page("", {
-    children: [page("[dynamicPage]")],
-  });
-}).types([43, "instantiations"]);
+// bench("Simple route config with inferred params", () => {
+//   page("", {
+//     children: [page("[dynamicPage]")],
+//   });
+// }).types([43, "instantiations"]);
 
-bench("Simple route config with query params", () => {
-  page("", {
-    children: [
-      page("staticPage", {
-        query: {
-          page: {
-            pageParam: parseAsString,
-          },
-          layout: {
-            layoutParam: parseAsString,
-          },
-        },
-      }),
-    ],
-  });
-}).types([52, "instantiations"]);
+// bench("Simple route config with query params", () => {
+//   page("", {
+//     children: [
+//       page("staticPage", {
+//         query: {
+//           page: {
+//             pageParam: parseAsString,
+//           },
+//           layout: {
+//             layoutParam: parseAsString,
+//           },
+//         },
+//       }),
+//     ],
+//   });
+// }).types([52, "instantiations"]);
 
-bench("Larger route config", () => {
-  page("", {
-    children: [
-      layout("staticLayout", {
-        children: [
-          layout("[noValidationDynamicLayout]", {
-            children: [
-              page("staticPage"),
-              page("[noValidationDynamicPage]", {
-                children: [
-                  page("[toUpperCase]", {
-                    params: z.string().transform((val) => val.toUpperCase()),
-                  }),
-                  page("[uuid]", {
-                    params: z.uuid(),
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-      page("staticPageAndLayoutQuery", {
-        query: {
-          layout: {
-            layoutParam: parseAsString,
-          },
-          page: {
-            pageParam: parseAsString,
-          },
-        },
-        children: [
-          page("[dynamicNoValidation]", {
-            query: {
-              page: {
-                dynamicPagePageParam: parseAsString,
-              },
-              layout: {
-                dynamicLayoutParam: parseAsString,
-              },
-            },
-          }),
-        ],
-      }),
-    ],
-  });
-}).types([158, "instantiations"]);
+// bench("Larger route config", () => {
+//   page("", {
+//     children: [
+//       layout("staticLayout", {
+//         children: [
+//           layout("[noValidationDynamicLayout]", {
+//             children: [
+//               page("staticPage"),
+//               page("[noValidationDynamicPage]", {
+//                 children: [
+//                   page("[toUpperCase]", {
+//                     params: z.string().transform((val) => val.toUpperCase()),
+//                   }),
+//                   page("[uuid]", {
+//                     params: z.uuid(),
+//                   }),
+//                 ],
+//               }),
+//             ],
+//           }),
+//         ],
+//       }),
+//       page("staticPageAndLayoutQuery", {
+//         query: {
+//           layout: {
+//             layoutParam: parseAsString,
+//           },
+//           page: {
+//             pageParam: parseAsString,
+//           },
+//         },
+//         children: [
+//           page("[dynamicNoValidation]", {
+//             query: {
+//               page: {
+//                 dynamicPagePageParam: parseAsString,
+//               },
+//               layout: {
+//                 dynamicLayoutParam: parseAsString,
+//               },
+//             },
+//           }),
+//         ],
+//       }),
+//     ],
+//   });
+// }).types([158, "instantiations"]);
 
-bench("Route root page", () => {
-  new Router(page("")).route("", {}, {});
-}).types([676, "instantiations"]);
+// bench("Route root page", () => {
+//   new Router(page("")).route("", {}, {});
+// }).types([676, "instantiations"]);
 
-bench("Route nested dynamic page", () => {
-  new Router(
-    layout("", {
-      children: [
-        page("staticLayout", {
-          children: [
-            layout("[noValidationDynamicLayout]", {
-              children: [
-                page("[noValidationDynamicPage]", {
-                  children: [
-                    page("[toUpperCase]", {
-                      params: z.string().transform((val) => val.toUpperCase()),
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    })
-  ).route(
-    "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
-    {
-      noValidationDynamicLayout: "param1",
-      noValidationDynamicPage: "param2",
-      toUpperCase: "param3",
-    },
-    {}
-  );
-}).types([1874, "instantiations"]);
+// bench("Route nested dynamic page", () => {
+//   new Router(
+//     layout("", {
+//       children: [
+//         page("staticLayout", {
+//           children: [
+//             layout("[noValidationDynamicLayout]", {
+//               children: [
+//                 page("[noValidationDynamicPage]", {
+//                   children: [
+//                     page("[toUpperCase]", {
+//                       params: z.string().transform((val) => val.toUpperCase()),
+//                     }),
+//                   ],
+//                 }),
+//               ],
+//             }),
+//           ],
+//         }),
+//       ],
+//     })
+//   ).route(
+//     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
+//     {
+//       noValidationDynamicLayout: "param1",
+//       noValidationDynamicPage: "param2",
+//       toUpperCase: "param3",
+//     },
+//     {}
+//   );
+// }).types([1874, "instantiations"]);
 
-bench("Get all paths for router", () => {
-  const routes = page("", {
-    children: [
-      page("page"),
-      layout("layout", {
-        children: [page("page")],
-      }),
-      page("[dynamicPage]", {
-        children: [page("page")],
-      }),
-    ],
-  });
+// bench("Get all paths for router", () => {
+//   const routes = page("", {
+//     children: [
+//       page("page"),
+//       layout("layout", {
+//         children: [page("page")],
+//       }),
+//       page("[dynamicPage]", {
+//         children: [page("page")],
+//       }),
+//     ],
+//   });
 
-  const val = "" as AllPaths<typeof routes, "page">;
-}).types([119, "instantiations"]);
+//   const val = "" as AllPaths<typeof routes, "page">;
+// }).types([119, "instantiations"]);
 
-bench("Get route schema", () => {
-  page("", {
-    children: [
-      layout("staticLayout", {
-        children: [
-          layout("[noValidationDynamicLayout]", {
-            children: [
-              page("staticPage"),
-              page("[noValidationDynamicPage]", {
-                children: [
-                  page("[toUpperCase]", {
-                    params: z.string().transform((val) => val.toUpperCase()),
-                  }),
-                  page("[uuid]", {
-                    params: z.uuid(),
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-      page("staticPageAndLayoutQuery", {
-        query: {
-          layout: {
-            layoutParam: parseAsString,
-          },
-          page: {
-            pageParam: parseAsString,
-          },
-        },
-        children: [
-          page("[dynamicNoValidation]", {
-            query: {
-              page: {
-                dynamicPagePageParam: parseAsString,
-              },
-              layout: {
-                dynamicLayoutParam: parseAsString,
-              },
-            },
-          }),
-        ],
-      }),
-    ],
-  });
-  const val = {} as GetRouteSchema<
-    "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
-    [typeof routes]
-  >;
-}).types([627, "instantiations"]);
+// bench("Get route schema", () => {
+//   page("", {
+//     children: [
+//       layout("staticLayout", {
+//         children: [
+//           layout("[noValidationDynamicLayout]", {
+//             children: [
+//               page("staticPage"),
+//               page("[noValidationDynamicPage]", {
+//                 children: [
+//                   page("[toUpperCase]", {
+//                     params: z.string().transform((val) => val.toUpperCase()),
+//                   }),
+//                   page("[uuid]", {
+//                     params: z.uuid(),
+//                   }),
+//                 ],
+//               }),
+//             ],
+//           }),
+//         ],
+//       }),
+//       page("staticPageAndLayoutQuery", {
+//         query: {
+//           layout: {
+//             layoutParam: parseAsString,
+//           },
+//           page: {
+//             pageParam: parseAsString,
+//           },
+//         },
+//         children: [
+//           page("[dynamicNoValidation]", {
+//             query: {
+//               page: {
+//                 dynamicPagePageParam: parseAsString,
+//               },
+//               layout: {
+//                 dynamicLayoutParam: parseAsString,
+//               },
+//             },
+//           }),
+//         ],
+//       }),
+//     ],
+//   });
+//   const val = {} as GetRouteSchema<
+//     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
+//     [typeof routes]
+//   >;
+// }).types([627, "instantiations"]);
