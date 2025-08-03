@@ -72,7 +72,12 @@ const routes = page("", {
       query: {
         groupParam: parseAsString,
       },
-      children: [page("staticPageWithSharedQueryChild")],
+      children: [
+        page("staticPageWithSharedQueryChild"),
+        group("(otherGroup)", {
+          children: [page("staticPage")],
+        }),
+      ],
     }),
   ],
 });
@@ -233,7 +238,7 @@ describe("Router", () => {
       param2: "param2",
     });
   });
-  it("Should route children of groups correctly", (args) => {
+  it("Should route children of a group correctly", (args) => {
     const res = router.route(
       "/(group)/staticPageWithSharedQueryChild",
       {},
@@ -245,6 +250,35 @@ describe("Router", () => {
     expect(res.data).toHaveExactQueryParams({
       groupParam: "param1",
     });
+  });
+  it("Should route children of multiple groups correctly", (args) => {
+    const res = router.route(
+      "/(group)/(otherGroup)/staticPage",
+      {},
+      { groupParam: "param1" }
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.data?.startsWith("/staticPage")).toBe(true);
+    expect(res.error).toBeUndefined();
+    expect(res.data).toHaveExactQueryParams({
+      groupParam: "param1",
+    });
+  });
+  it("Should not allow routing to groups", (args) => {
+    const res = router.route(
+      // @ts-expect-error -- this should not be accepted
+      "/(group)",
+      {},
+      { groupParam: "param1" }
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.error).toBeDefined();
+    expect(res.error?._tag).toEqual("RoutingNoMatchingRouteError");
+    assert(RoutingNoMatchingRouteError.is(res.error));
+    expect(res.error.type).toBe(
+      "matchedWrongType" satisfies RoutingNoMatchingRouteErrorType
+    );
+    expect(res.data).toBeUndefined();
   });
 });
 
