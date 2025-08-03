@@ -13,6 +13,7 @@ Simple type safe routing for Next.js app router
 - [ ] Add support for catch all routes (e.g. `[...path]`)
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Remove `page` on `query` for `layout` routes
+- [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
 
 ### Testing
 
@@ -66,11 +67,8 @@ router.route("/items/[itemId]", {}, {});
 // Runtime error: not a valid UUID
 router.route("/items/[itemId]", { itemId: "123" }, {});
 
-export default signInPage = router.implementPage(
-  "/(auth)/sign-in",
-  async (props) => {
-    const { query } = await props.parseUnsafe();
-    return <div>{query.email}</div>;
-  }
-);
+export default router.implementPage("/(auth)/sign-in", async (props) => {
+  const { query } = await props.parseUnsafe();
+  return <div>{query.email}</div>;
+});
 ```
