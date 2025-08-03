@@ -1,20 +1,35 @@
 {
   "name": "typesafe-routes",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**"
+  ],
   "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --diagnostics",
     "test:watch": "vitest --watch"
   },
+  "homepage": "https://github.com/janglad/next-app-typesafe-routes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/janglad/next-app-typesafe-routes.git"
+  },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.12.4",
   "devDependencies": {
     "@ark/attest": "^0.48.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
