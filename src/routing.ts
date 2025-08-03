@@ -35,6 +35,7 @@ export interface RouteBase {
   readonly params: AnyParamSchema | undefined;
   readonly query: QueryParams | undefined;
   readonly children: readonly RouteBase[];
+  readonly ["~paramSchemaMap"]: Record<string, AnyParamSchema | undefined>;
 }
 
 type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
@@ -76,6 +77,7 @@ export interface Page<
   readonly params: ParamSchema;
   readonly children: Children;
   readonly query: QueryParamSchema;
+  readonly ["~paramSchemaMap"]: ParamSchemaMap<Pathname, ParamSchema>;
 }
 export const page = <
   const Pathname extends string,
@@ -105,6 +107,7 @@ export const page = <
   query: (config.query
     ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+  ["~paramSchemaMap"]: {} as ParamSchemaMap<Pathname, ParamsSchema>,
 });
 
 export interface Layout<
@@ -118,6 +121,7 @@ export interface Layout<
   readonly params: ParamsSchema;
   readonly children: Children;
   readonly query: QueryParamsSchema;
+  readonly ["~paramSchemaMap"]: ParamSchemaMap<Pathname, ParamsSchema>;
 }
 export const layout = <
   const Pathname extends string,
@@ -147,6 +151,7 @@ export const layout = <
   query: (config.query
     ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+  ["~paramSchemaMap"]: {} as ParamSchemaMap<Pathname, ParamsSchema>,
 });
 
 export interface Group<
@@ -159,6 +164,7 @@ export interface Group<
   readonly children: Children;
   readonly query: QueryParamsSchema;
   readonly params: undefined;
+  readonly ["~paramSchemaMap"]: {};
 }
 
 export const group = <
@@ -182,6 +188,7 @@ export const group = <
     ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
   params: undefined,
+  ["~paramSchemaMap"]: {},
 });
 
 export type AllPaths<
@@ -237,27 +244,23 @@ export type GetRouteSchema<
 > = Path extends `${infer RoutePathName}/${infer Rest}`
   ? GetMatchingRoute<RoutePathName, Routes> extends {
       children: infer RoutePathChildren extends readonly RouteBase[];
-      params: infer RouteParamSchema;
-      path: RoutePathName;
+      ["~paramSchemaMap"]: infer RouteParamSchemaMap;
       query: infer RouteQuerySchema;
     }
     ? GetRouteSchema<
         Rest,
         RoutePathChildren,
-        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params,
+        RouteParamSchemaMap & Params,
         GetLayoutQueryParamsSchema<RouteQuerySchema> & PageQueryParamMap
       >
     : never
   : GetMatchingRoute<Path, Routes> extends {
       type: "page";
-      path: infer RoutePathName extends string;
-      params: infer RouteParamSchema;
+      ["~paramSchemaMap"]: infer RouteParamSchemaMap;
       query: infer RouteQuerySchema;
     }
   ? {
-      params: StrictEmptyObject<
-        Prettify<ParamSchemaMap<RoutePathName, RouteParamSchema> & Params>
-      >;
+      params: StrictEmptyObject<Prettify<RouteParamSchemaMap & Params>>;
       query: {
         page: StrictEmptyObject<
           Prettify<
