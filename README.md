@@ -4,8 +4,6 @@ Simple type safe routing for Next.js app router
 
 ### Bugs
 
-- [ ] Fix type issue with `{}` on paths without params
-
 ### Features
 
 - [ ] Figure out best way to handle parsing props on server/client (wrap client side hooks?)

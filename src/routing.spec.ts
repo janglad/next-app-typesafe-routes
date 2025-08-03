@@ -9,6 +9,8 @@ import {
   RoutingNoMatchingRouteError,
   type RoutingNoMatchingRouteErrorType,
 } from "./routing.js";
+import { attest } from "@ark/attest";
+import type { PreinitOptions } from "react-dom";
 
 const routes = page("", {
   children: [

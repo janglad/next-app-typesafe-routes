@@ -88,7 +88,7 @@ bench("Larger route config", () => {
 
 bench("Route root page", () => {
   new Router(page("")).route("", {}, {});
-}).types([761, "instantiations"]);
+}).types([871, "instantiations"]);
 
 bench("Route nested dynamic page", () => {
   new Router(
@@ -120,7 +120,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([2623, "instantiations"]);
+}).types([2720, "instantiations"]);
 
 bench("Get all paths for router", () => {
   const routes = page("", {

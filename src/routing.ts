@@ -1,5 +1,10 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { createLoader, createSerializer, type Parser } from "nuqs/server";
+import {
+  createLoader,
+  createSerializer,
+  type Parser,
+  type ParserBuilder,
+} from "nuqs/server";
 import type { ReactNode } from "react";
 
 type AnyParamValue = string;
@@ -160,8 +165,8 @@ export const group = <
   const Pathname extends `(${string})`,
   const Children extends readonly RouteBase[],
   const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
-    layout: {};
-    page: {};
+    layout: Record<string, never>;
+    page: Record<string, never>;
   }
 >(
   path: Pathname,
@@ -217,6 +222,13 @@ type GetMatchingRoute<
 type GetPageQueryParamsSchema<T> = T extends QueryParams ? T["page"] : {};
 type GetLayoutQueryParamsSchema<T> = T extends QueryParams ? T["layout"] : {};
 
+// TODO: fine better way to solve this
+type StrictEmptyObject<T> = T extends {}
+  ? keyof T extends never
+    ? Record<PropertyKey, never>
+    : T
+  : T;
+
 export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
@@ -243,17 +255,21 @@ export type GetRouteSchema<
       query: infer RouteQuerySchema;
     }
   ? {
-      params: Prettify<
-        ParamSchemaMap<RoutePathName, RouteParamSchema> & Params
+      params: StrictEmptyObject<
+        Prettify<ParamSchemaMap<RoutePathName, RouteParamSchema> & Params>
       >;
       query: {
-        page: Prettify<
-          PageQueryParamMap &
-            GetPageQueryParamsSchema<RouteQuerySchema> &
-            GetLayoutQueryParamsSchema<RouteQuerySchema>
+        page: StrictEmptyObject<
+          Prettify<
+            PageQueryParamMap &
+              GetPageQueryParamsSchema<RouteQuerySchema> &
+              GetLayoutQueryParamsSchema<RouteQuerySchema>
+          >
         >;
-        layout: Prettify<
-          PageQueryParamMap & GetLayoutQueryParamsSchema<RouteQuerySchema>
+        layout: StrictEmptyObject<
+          Prettify<
+            PageQueryParamMap & GetLayoutQueryParamsSchema<RouteQuerySchema>
+          >
         >;
       };
     }
@@ -628,7 +644,7 @@ export class Router<
     );
     const urlWithParamsWithoutGroups = Router["~stripGroups"](urlWithParams);
     const serializer = createSerializer(schemaRes.data.schema.query.page);
-    const queryString = serializer(query);
+    const queryString = serializer(query as any);
     const url = `${urlWithParamsWithoutGroups}${queryString}`;
 
     return {
