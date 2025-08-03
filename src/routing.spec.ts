@@ -12,6 +12,7 @@ import {
 import z from "zod";
 import { parseAsString, parseAsStringEnum } from "nuqs";
 import { bench } from "@ark/attest";
+import { renderToString } from "react-dom/server";
 
 const routes = page("", {
   children: [
@@ -280,7 +281,23 @@ describe("Router", () => {
     );
     expect(res.data).toBeUndefined();
   });
+
+  describe("implementPage", () => {
+    it("should return a sync function if the implementation is sync", () => {
+      const res = router.implementPage(
+        "/staticPageAndLayoutQuery",
+        () => "Output"
+      );
+      expect(res).not.toBeInstanceOf(Promise);
+      expect(renderToString(res(emptyProps))).toEqual("Output");
+    });
+  });
 });
+
+const emptyProps = {
+  searchParams: Promise.resolve({}),
+  params: Promise.resolve({}),
+};
 
 bench("simple route config", () => {
   page("", {

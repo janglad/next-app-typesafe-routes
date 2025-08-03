@@ -15,8 +15,9 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "vitest run",
+    "test:withTypes": "vitest run",
     "typecheck": "tsc --noEmit --diagnostics",
-    "test:watch": "vitest --watch"
+    "test:watch": "ATTEST_skipTypes=1 vitest"
   },
   "homepage": "https://github.com/janglad/next-app-typesafe-routes",
   "repository": {
@@ -29,6 +30,10 @@
   "packageManager": "pnpm@10.12.4",
   "devDependencies": {
     "@ark/attest": "^0.48.2",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",

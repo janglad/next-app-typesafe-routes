@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { createSerializer, type Parser } from "nuqs/server";
+import { createLoader, createSerializer, type Parser } from "nuqs/server";
+import type { ReactNode } from "react";
 
 type AnyParamValue = string;
 
@@ -266,8 +267,17 @@ export type SchemaInput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferInput<T>
   : never;
 
+export type SchemaOutput<T> = T extends StandardSchemaV1
+  ? StandardSchemaV1.InferOutput<T>
+  : never;
+
 type GetParserMapInput<T extends Record<string, Parser<any>>> = {
   readonly [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
+};
+
+// TODO: check how to handle null/default values
+type GetParserMapOutput<T extends Record<string, Parser<any>>> = {
+  readonly [K in keyof T]?: T[K] extends Parser<infer U> ? U : never;
 };
 
 type GetParamMapInput<ParamSchema> = {
@@ -643,21 +653,266 @@ export class Router<
     throw res.error;
   }
 
-  makeUnsafeParser<Path extends AllPaths<[Routes], "page">>(
+  makeUnsafeSerializer<Path extends AllPaths<[Routes], "page">>(
     path: Path
-  ): <const RouteSchema extends GetRouteSchema<Path, [Routes]>>(
-    params: GetParamMapInput<RouteSchema["params"]>,
-    query: GetParserMapInput<RouteSchema["query"]["page"]>
-  ) => string {
+  ): UnsafeSerializer<[Routes], Path> {
     return (params, query) => this.routeUnsafe(path, params, query);
   }
 
-  makeParser<Path extends AllPaths<[Routes], "page">>(
+  makeSerializer<Path extends AllPaths<[Routes], "page">>(
     path: Path
-  ): <const RouteSchema extends GetRouteSchema<Path, [Routes]>>(
-    params: GetParamMapInput<RouteSchema["params"]>,
-    query: GetParserMapInput<RouteSchema["query"]["page"]>
-  ) => RouterRouteReturn {
+  ): Serializer<[Routes], Path> {
     return (params, query) => this.route(path, params, query);
   }
+
+  parse<
+    const Path extends AllPaths<[Routes], RouteType>,
+    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+  >(path: Path, props: UnparsedPageProps): ParserReturn<RouteSchema> {
+    const schemaRes = this.getRouteSchema(path);
+    if (schemaRes.ok === false) {
+      return schemaRes;
+    }
+
+    const parsedParams: Record<string, string> = {};
+
+    for (const key of Object.keys(schemaRes.data.schema.params)) {
+      const paramSchema =
+        schemaRes.data.schema.params[
+          key as keyof typeof schemaRes.data.schema.params
+        ];
+      if (paramSchema === undefined) {
+        // @ts-expect-error: TODO: check if this is correct
+        parsedParams[key] = props.params[key];
+      } else {
+        const parseRes = (paramSchema as StandardSchemaV1<string>)[
+          "~standard"
+        ].validate(props.params[key as keyof typeof props.params]);
+
+        if (parseRes instanceof Promise) {
+          throw new RoutingInternalDefectError({
+            message: `Schema at ${key} of ${path} is async, only sync schemas are supported`,
+          });
+        }
+
+        if (parseRes.issues !== undefined) {
+          return {
+            ok: false,
+            error: new RoutingValidationError({
+              expected: paramSchema,
+              actual: props.params[key as keyof typeof props.params],
+              path: path,
+              issues: parseRes.issues,
+            }),
+          };
+        }
+        parsedParams[key] = parseRes.value;
+      }
+    }
+    const queryParamParser = createLoader(
+      schemaRes.data.schema.query[
+        schemaRes.data.matchedType === "page" ? "page" : "layout"
+      ]
+    );
+    // TODO: check if this can throw
+    const queryParseRes = queryParamParser(props.searchParams);
+
+    return {
+      ok: true,
+      data: {
+        params: parsedParams as RouteParamsOutput<RouteSchema>,
+        query: queryParseRes as RouteQueryOutput<RouteSchema>,
+      },
+    };
+  }
+
+  implementPage<Path extends AllPaths<[Routes], "page">>(
+    path: Path,
+    implementation: StaticPageImplementationPageImplementation<[Routes], Path>
+  ): (props: UnparsedAsyncPageProps) => ReactNode;
+
+  implementPage<Path extends AllPaths<[Routes], "page">>(
+    path: Path,
+    implementation: DynamicPageImplementation<[Routes], Path>
+  ): (props: UnparsedAsyncPageProps) => Promise<ReactNode>;
+
+  implementPage<Path extends AllPaths<[Routes], "page">>(
+    path: Path,
+    implementation:
+      | StaticPageImplementationPageImplementation<[Routes], Path>
+      | DynamicPageImplementation<[Routes], Path>
+  ): (props: UnparsedAsyncPageProps) => ReactNode | Promise<ReactNode> {
+    const safeParser = async (props: UnparsedAsyncPageProps) => {
+      const params = await props.params;
+      const searchParams = await props.searchParams;
+      return this.parse(path, {
+        params,
+        searchParams,
+      });
+    };
+
+    const unsafeParser = async (props: UnparsedAsyncPageProps) => {
+      const params = await props.params;
+      const searchParams = await props.searchParams;
+      const res = this.parse(path, {
+        params,
+        searchParams,
+      });
+      if (res.ok) {
+        return res.data;
+      }
+      throw res.error;
+    };
+
+    return (props: UnparsedAsyncPageProps) => {
+      const safeParseScoped = () => safeParser(props);
+      const unsafeParseScoped = () => unsafeParser(props);
+      return implementation(path, {
+        props,
+        parse: safeParseScoped,
+        parseUnsafe: unsafeParseScoped,
+      });
+    };
+  }
+}
+
+interface Serializer<
+  in out Routes extends readonly RouteBase[],
+  in out Path extends AllPaths<[Routes], "page">
+> {
+  (
+    params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
+    query: GetParserMapInput<GetRouteSchema<Path, Routes>["query"]["page"]>
+  ): RouterRouteReturn;
+}
+
+interface UnsafeSerializer<
+  in out Routes extends readonly RouteBase[],
+  in out Path extends AllPaths<[Routes], "page">
+> {
+  (
+    params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
+    query: GetParserMapInput<GetRouteSchema<Path, Routes>["query"]["page"]>
+  ): string;
+}
+
+interface StaticPageImplementationPageImplementation<
+  in out Routes extends readonly AnyRoute[],
+  in out Path extends AllPaths<[Routes], "page">,
+  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+    Path,
+    Routes
+  >
+> {
+  (
+    path: Path,
+    args: {
+      props: UnparsedAsyncPageProps;
+      parse: PageImplParser<Routes, Path, RouteSchema>;
+      parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+    }
+  ): ReactNode;
+}
+
+interface DynamicPageImplementation<
+  in out Routes extends readonly AnyRoute[],
+  in out Path extends AllPaths<[Routes], "page">,
+  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+    Path,
+    Routes
+  >
+> {
+  (
+    path: Path,
+    args: {
+      props: UnparsedAsyncPageProps;
+      parse: PageImplParser<Routes, Path, RouteSchema>;
+      parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+    }
+  ): Promise<ReactNode>;
+}
+interface LayoutImplementation<
+  in out Routes extends readonly AnyRoute[],
+  in out Path extends AllPaths<[Routes], "layout" | "group">,
+  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+    Path,
+    Routes
+  >
+> {
+  (
+    path: Path,
+    args: {
+      props: UnparsedLayoutProps;
+      parse: PageImplParser<Routes, Path, RouteSchema>;
+      parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+    }
+  ): ReactNode | Promise<ReactNode>;
+}
+
+interface UnparsedAsyncPageProps {
+  readonly params: Promise<Record<string, string | string[]>>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+interface UnparsedPageProps {
+  readonly params: Record<string, string | string[]>;
+  readonly searchParams: Record<string, string | string[] | undefined>;
+}
+
+interface UnparsedLayoutProps extends UnparsedAsyncPageProps {
+  children: ReactNode;
+}
+
+type RouteParamsOutput<
+  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
+> = SchemaOutput<RouteSchema["params"]>;
+
+type RouteQueryOutput<
+  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
+> = GetParserMapOutput<RouteSchema["query"]["page"]>;
+
+interface PageImplParser<
+  in out Routes extends readonly RouteBase[],
+  in out Path extends AllPaths<[Routes], "page">,
+  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+    Path,
+    Routes
+  >
+> {
+  (): Promise<ParserReturn<RouteSchema>>;
+}
+
+type ParserReturn<
+  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
+> =
+  | {
+      ok: true;
+      data: {
+        readonly params: RouteParamsOutput<RouteSchema>;
+        readonly query: RouteQueryOutput<RouteSchema>;
+      };
+      error?: undefined;
+    }
+  | {
+      ok: false;
+      data?: undefined;
+      error: RoutingValidationError | RoutingNoMatchingRouteError;
+    };
+
+interface ParseUnsafeReturn<
+  in out RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
+> {
+  readonly params: RouteParamsOutput<RouteSchema>;
+  readonly query: RouteQueryOutput<RouteSchema>;
+}
+
+interface PageImplParserUnsafe<
+  in out Routes extends readonly RouteBase[],
+  in out Path extends AllPaths<[Routes], "page">,
+  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+    Path,
+    Routes
+  >
+> {
+  (): Promise<ParseUnsafeReturn<RouteSchema>>;
 }
