@@ -31,10 +31,10 @@ type AnyRoute =
 type RouteType = "page" | "layout" | "group";
 export interface RouteBase {
   readonly type: RouteType;
-  readonly path: string | undefined;
+  readonly path: string;
   readonly params: AnyParamSchema | undefined;
-  readonly query: QueryParams | undefined;
-  readonly children: readonly RouteBase[];
+  readonly query: QueryParams;
+  readonly children: readonly RouteBase[] | undefined;
   readonly ["~paramSchemaMap"]: Record<string, AnyParamSchema | undefined>;
 }
 
@@ -70,7 +70,7 @@ export interface Page<
   in out Pathname extends string,
   in out ParamSchema extends GetParamsSchema<Pathname>,
   in out QueryParamSchema extends QueryParams,
-  in out Children extends readonly RouteBase[]
+  in out Children extends readonly RouteBase[] | undefined
 > extends RouteBase {
   readonly type: "page";
   readonly path: Pathname;
@@ -86,7 +86,7 @@ export const page = <
     layout: {};
     page: {};
   },
-  const Children extends readonly RouteBase[] = []
+  const Children extends readonly RouteBase[] | undefined = undefined
 >(
   path: Pathname,
   config: {
@@ -98,12 +98,12 @@ export const page = <
   Pathname,
   ParamsSchema,
   MakeQueryParamsReturn<QueryParamsSchema>,
-  Children
+  undefined extends Children ? undefined : Children
 > => ({
   type: "page",
   path: path,
   params: config.params as ParamsSchema,
-  children: (config.children ?? []) as Children,
+  children: config.children as any,
   query: (config.query
     ? makeQueryParams(config.query)
     : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
@@ -506,7 +506,7 @@ export class Router<
       },
     };
     let pathSegments = (path as string).split("/").splice(1);
-    let currentRoute: AnyRoute = this["~routes"];
+    let currentRoute: RouteBase = this["~routes"];
 
     while (true) {
       const dynamicRouteKey = Router["~getDynamicRouteKey"](currentRoute.path);
@@ -541,7 +541,7 @@ export class Router<
         break;
       }
 
-      const newRoute = currentRoute.children.find(
+      const newRoute = currentRoute.children?.find(
         (route) => route.path === pathSegments[0]
       );
       if (newRoute === undefined) {
@@ -549,7 +549,8 @@ export class Router<
           ok: false,
           error: new RoutingNoMatchingRouteError({
             path: path,
-            pathCandidates: currentRoute.children.map((route) => route.path),
+            pathCandidates:
+              currentRoute.children?.map((route) => route.path) ?? [],
             actual: pathSegments[0]!,
             type: "noMatch",
           }),
@@ -874,15 +875,12 @@ interface UnparsedLayoutProps extends UnparsedAsyncPageProps {
   children: ReactNode;
 }
 
-type RouteParamsOutput<
-  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
-> = {
+type RouteParamsOutput<RouteSchema extends GetRouteSchema<any, any>> = {
   [K in keyof RouteSchema["params"]]: SchemaOutput<RouteSchema["params"][K]>;
 };
 
-type RouteQueryOutput<
-  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
-> = GetParserMapOutput<RouteSchema["query"]["page"]>;
+type RouteQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
+  GetParserMapOutput<RouteSchema["query"]["page"]>;
 
 interface PageImplParser<
   in out Routes extends readonly RouteBase[],
@@ -895,9 +893,7 @@ interface PageImplParser<
   (): Promise<ParserReturn<RouteSchema>>;
 }
 
-type ParserReturn<
-  RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
-> =
+type ParserReturn<RouteSchema extends GetRouteSchema<any, any>> =
   | {
       readonly ok: true;
       readonly data: {
@@ -913,7 +909,7 @@ type ParserReturn<
     };
 
 interface ParseUnsafeReturn<
-  in out RouteSchema extends GetRouteSchema<string, readonly RouteBase[]>
+  in out RouteSchema extends GetRouteSchema<any, any>
 > {
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: RouteQueryOutput<RouteSchema>;
