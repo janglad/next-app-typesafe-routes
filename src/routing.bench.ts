@@ -13,13 +13,13 @@ bench("simple route config", () => {
   page("", {
     children: [page("staticPage")],
   });
-}).types([28, "instantiations"]);
+}).types([29, "instantiations"]);
 
 bench("Simple route config with inferred params", () => {
   page("", {
     children: [page("[dynamicPage]")],
   });
-}).types([42, "instantiations"]);
+}).types([43, "instantiations"]);
 
 bench("Simple route config with query params", () => {
   page("", {
@@ -36,7 +36,7 @@ bench("Simple route config with query params", () => {
       }),
     ],
   });
-}).types([55, "instantiations"]);
+}).types([59, "instantiations"]);
 
 bench("Larger route config", () => {
   page("", {
@@ -84,11 +84,11 @@ bench("Larger route config", () => {
       }),
     ],
   });
-}).types([164, "instantiations"]);
+}).types([175, "instantiations"]);
 
 bench("Route root page", () => {
   new Router(page("")).route("", {}, {});
-}).types([715, "instantiations"]);
+}).types([712, "instantiations"]);
 
 const dynamicRouteRouter = new Router(
   layout("", {
@@ -121,7 +121,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([1646, "instantiations"]);
+}).types([1642, "instantiations"]);
 
 const deeplyNestedRouter = new Router(
   layout("", {
@@ -206,7 +206,7 @@ bench("Route deeply nested page", () => {
     },
     {}
   );
-}).types([7647, "instantiations"]);
+}).types([6652, "instantiations"]);
 
 const getAllPathsRoutes = page("", {
   children: [
@@ -221,7 +221,7 @@ const getAllPathsRoutes = page("", {
 });
 bench("Get all paths for router", () => {
   const val = "" as AllPaths<[typeof getAllPathsRoutes], "page">;
-}).types([139, "instantiations"]);
+}).types([131, "instantiations"]);
 const getRouteSchemaRoutes = page("", {
   children: [
     layout("staticLayout", {
@@ -272,4 +272,9 @@ bench("Get route schema", () => {
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     [typeof getRouteSchemaRoutes]
   >;
-}).types([311, "instantiations"]);
+}).types([313, "instantiations"]);
+
+const test = page("hi").children;
+//     ^?
+const test2 = page("hi", { children: [page("hi")] }).children;
+//     ^?
