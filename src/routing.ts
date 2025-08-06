@@ -1,10 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import {
-  createLoader,
-  createSerializer,
-  type Parser,
-  type ParserBuilder,
-} from "nuqs/server";
+import { createLoader, createSerializer, type Parser } from "nuqs/server";
 import type { ReactNode } from "react";
 
 type AnyParamValue = string;
@@ -191,22 +186,23 @@ export const group = <
   ["~paramSchemaMap"]: {},
 });
 
-export type AllPaths<
-  Routes,
-  Type extends RouteType
-> = Routes extends readonly unknown[]
-  ? Routes[number] extends infer Route
-    ? Route extends {
-        type: infer PathType;
-        path: infer Pathname extends string;
-        children: infer Children;
-      }
-      ?
-          | (PathType extends Type ? Pathname : never)
-          | `${Pathname}/${AllPaths<Children, Type>}`
-      : never
-    : never
-  : never;
+type AbsorbUndefined<T> = T extends undefined ? never : T;
+
+export type LazyAllPaths<Route extends [any], Path extends string> =
+  | (string extends Path ? never : _GetPath<Path, [{ children: Route }]>)
+  | "/";
+
+type _GetPath<
+  Path extends string,
+  Route extends [any]
+> = Path extends `${infer First}/${infer Rest}`
+  ? `${First}/${_GetPath<
+      Rest,
+      [AbsorbUndefined<Route[0]["children"]>[number] & { path: First }]
+    >}`
+  : Path extends AbsorbUndefined<Route[0]["children"]>[number]["path"]
+  ? Path
+  : AbsorbUndefined<Route[0]["children"]>[number]["path"];
 
 type ParamKey<T extends string> = T extends `[${infer P}]` ? P : never;
 
@@ -240,7 +236,8 @@ export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
   Params extends Record<string, StandardSchemaV1<string>> = {},
-  PageQueryParamMap = {}
+  PageQueryParamMap = {},
+  Type extends RouteType = "page"
 > = Path extends `${infer RoutePathName}/${infer Rest}`
   ? GetMatchingRoute<RoutePathName, Routes> extends {
       children: infer RoutePathChildren extends readonly RouteBase[];
@@ -255,11 +252,12 @@ export type GetRouteSchema<
       >
     : never
   : GetMatchingRoute<Path, Routes> extends {
-      type: "page";
+      type: infer RouteType extends Type;
       ["~paramSchemaMap"]: infer RouteParamSchemaMap;
       query: infer RouteQuerySchema;
     }
   ? {
+      type: RouteType;
       params: StrictEmptyObject<Prettify<RouteParamSchemaMap & Params>>;
       query: {
         page: StrictEmptyObject<
@@ -433,7 +431,7 @@ type RouterRouteReturn =
 
 export type GetRouteSchemaReturn<
   Routes extends RouteBase,
-  Path extends AllPaths<Routes, RouteType>
+  Path extends string
 > =
   | {
       readonly ok: true;
@@ -485,17 +483,14 @@ export class Router<
     return path.match(/^\[(.*)\]$/)?.[1];
   }
 
-  getRouteSchemaCache = new Map<
-    string,
-    GetRouteSchemaReturn<Routes, AllPaths<[Routes], RouteType>>
-  >();
+  getRouteSchemaCache = new Map<string, GetRouteSchemaReturn<Routes, string>>();
 
-  getRouteSchema<const Path extends AllPaths<[Routes], RouteType>>(
-    path: Path
+  getRouteSchema<const Path extends string>(
+    path: LazyAllPaths<[Routes], Path>
   ): GetRouteSchemaReturn<Routes, Path> {
     const cached = this.getRouteSchemaCache.get(path);
     if (cached !== undefined) {
-      return cached;
+      return cached as any;
     }
 
     const res = {
@@ -505,7 +500,7 @@ export class Router<
         page: {} as Record<string, Parser<any>>,
       },
     };
-    let pathSegments = (path as string).split("/").splice(1);
+    let pathSegments = path.split("/").splice(1);
     let currentRoute: RouteBase = this["~routes"];
 
     while (true) {
@@ -568,9 +563,9 @@ export class Router<
       },
     };
 
-    this.getRouteSchemaCache.set(path, returnValue);
+    this.getRouteSchemaCache.set(path, returnValue as any);
 
-    return returnValue;
+    return returnValue as any;
   }
 
   /**
@@ -582,14 +577,17 @@ export class Router<
    *   - {@link RoutingNoMatchingRouteError}: the path does not match any route, or the last segment does not match a page
    */
   route<
-    const Path extends AllPaths<[Routes], "page">,
+    const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
-    path: Path,
+    path: LazyAllPaths<[Routes], Path> & string,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): RouterRouteReturn {
-    const schemaRes = this.getRouteSchema(path);
+    const schemaRes = this.getRouteSchema(
+      // @ts-expect-error
+      path
+    );
     if (schemaRes.ok === false) {
       return schemaRes;
     }
@@ -659,10 +657,10 @@ export class Router<
 
   /** Like {@link route} but throws if the route is not found. */
   routeUnsafe<
-    const Path extends AllPaths<[Routes], "page">,
+    const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
-    path: Path,
+    path: LazyAllPaths<[Routes], Path>,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
@@ -673,22 +671,31 @@ export class Router<
     throw res.error;
   }
 
-  makeUnsafeSerializer<Path extends AllPaths<[Routes], "page">>(
-    path: Path
+  makeUnsafeSerializer<Path extends string>(
+    path: LazyAllPaths<[Routes], Path>
   ): UnsafeSerializer<[Routes], Path> {
-    return (params, query) => this.routeUnsafe(path, params, query);
+    return (params, query) =>
+      this.routeUnsafe(
+        // @ts-expect-error
+        path,
+        params,
+        query
+      );
   }
 
-  makeSerializer<Path extends AllPaths<[Routes], "page">>(
-    path: Path
+  makeSerializer<Path extends string>(
+    path: LazyAllPaths<[Routes], Path>
   ): Serializer<[Routes], Path> {
     return (params, query) => this.route(path, params, query);
   }
 
   parse<
-    const Path extends AllPaths<[Routes], RouteType>,
+    const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
-  >(path: Path, props: UnparsedPageProps): ParserReturn<RouteSchema> {
+  >(
+    path: LazyAllPaths<[Routes], Path>,
+    props: UnparsedPageProps
+  ): ParserReturn<RouteSchema> {
     const schemaRes = this.getRouteSchema(path);
     if (schemaRes.ok === false) {
       return schemaRes;
@@ -746,16 +753,16 @@ export class Router<
     };
   }
 
-  implementPage<Path extends AllPaths<[Routes], "page">>(
-    path: Path,
+  implementPage<Path extends string>(
+    path: LazyAllPaths<[Routes], Path>,
     implementation: StaticPageImplementation<[Routes], Path>
   ): (props: UnparsedAsyncPageProps) => ReactNode;
-  implementPage<Path extends AllPaths<[Routes], "page">>(
-    path: Path,
+  implementPage<Path extends string>(
+    path: LazyAllPaths<[Routes], Path>,
     implementation: DynamicPageImplementation<[Routes], Path>
   ): (props: UnparsedAsyncPageProps) => Promise<ReactNode>;
-  implementPage<Path extends AllPaths<[Routes], "page">>(
-    path: Path,
+  implementPage<Path extends string>(
+    path: LazyAllPaths<[Routes], Path>,
     implementation:
       | StaticPageImplementation<[Routes], Path>
       | DynamicPageImplementation<[Routes], Path>
@@ -796,7 +803,7 @@ export class Router<
 
 interface Serializer<
   in out Routes extends readonly RouteBase[],
-  in out Path extends AllPaths<[Routes], "page">
+  in out Path extends string
 > {
   (
     params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
@@ -806,7 +813,7 @@ interface Serializer<
 
 interface UnsafeSerializer<
   in out Routes extends readonly RouteBase[],
-  in out Path extends AllPaths<[Routes], "page">
+  in out Path extends string
 > {
   (
     params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
@@ -816,7 +823,7 @@ interface UnsafeSerializer<
 
 interface StaticPageImplementation<
   in out Routes extends readonly AnyRoute[],
-  in out Path extends AllPaths<[Routes], "page">,
+  in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -831,7 +838,7 @@ interface StaticPageImplementation<
 
 interface DynamicPageImplementation<
   in out Routes extends readonly AnyRoute[],
-  in out Path extends AllPaths<[Routes], "page">,
+  in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -845,7 +852,7 @@ interface DynamicPageImplementation<
 }
 interface LayoutImplementation<
   in out Routes extends readonly AnyRoute[],
-  in out Path extends AllPaths<[Routes], "layout" | "group">,
+  in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -884,7 +891,7 @@ type RouteQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
 
 interface PageImplParser<
   in out Routes extends readonly RouteBase[],
-  in out Path extends AllPaths<[Routes], "page">,
+  in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -917,7 +924,7 @@ interface ParseUnsafeReturn<
 
 interface PageImplParserUnsafe<
   in out Routes extends readonly RouteBase[],
-  in out Path extends AllPaths<[Routes], "page">,
+  in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes

@@ -1,10 +1,10 @@
 import { parseAsString } from "nuqs";
 import * as z from "zod";
-import { layout, page, Router } from "./src/routing.js";
+import { layout, page, Router, type LazyAllPaths } from "./src/routing.js";
 
 const routes = layout("", {
   children: [
-    layout("[id]", {
+    page("[id]", {
       params: z.string().brand("id"),
       children: [
         page("somepage"),
@@ -1080,3 +1080,40 @@ const someRouter = layout("", {
     }),
   ],
 });
+
+const get = <const T extends string>(
+  path: LazyAllPaths<[typeof routes], T>
+) => {};
+
+const somePage = page("", { children: [page("hello")] });
+
+new Router(somePage).route("", {}, {});
+
+type AbsorbUndefined<T> = T extends undefined ? never : T;
+
+type _GetPath<
+  Path extends string,
+  Route extends [any]
+> = Path extends `${infer First}/${infer Rest}`
+  ? `${First}/${_GetPath<
+      Rest,
+      [AbsorbUndefined<Route[0]["children"]>[number] & { path: First }]
+    >}`
+  : // : Path extends GetLayoutChildren<Route>["path"]
+  // ? "Last page must be a page"
+  Path extends AbsorbUndefined<Route[0]["children"]>[number]["path"]
+  ? Path
+  : AbsorbUndefined<Route[0]["children"]>[number]["path"];
+
+export type LazyAllPaths2<
+  Route extends [any],
+  Path extends string
+> = Path extends `/${infer First}`
+  ? First extends _GetPath<First, [{ children: Route }]>
+    ? Path
+    : never
+  : never;
+
+type test = LazyAllPaths2<[typeof somePage], "/">;
+
+router.route("/", {}, {});

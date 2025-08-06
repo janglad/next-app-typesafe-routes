@@ -9,8 +9,6 @@ import {
   RoutingNoMatchingRouteError,
   type RoutingNoMatchingRouteErrorType,
 } from "./routing.js";
-import { attest } from "@ark/attest";
-import type { PreinitOptions } from "react-dom";
 
 const routes = page("", {
   children: [
@@ -270,6 +268,7 @@ describe("Router", () => {
       {},
       { groupParam: "param1" }
     );
+
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.error).toBeDefined();
     expect(res.error?._tag).toEqual("RoutingNoMatchingRouteError");
