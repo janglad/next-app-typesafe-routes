@@ -804,20 +804,10 @@ export class Router<
     };
   }
 
-  implementPage<Path extends string>(
-    path: LazyAllPaths<[Routes], Path>,
-    implementation: StaticPageImplementation<[Routes], Path>
-  ): (props: UnparsedAsyncPageProps) => ReactNode;
-  implementPage<Path extends string>(
-    path: LazyAllPaths<[Routes], Path>,
-    implementation: DynamicPageImplementation<[Routes], Path>
-  ): (props: UnparsedAsyncPageProps) => Promise<ReactNode>;
-  implementPage<Path extends string>(
-    path: LazyAllPaths<[Routes], Path>,
-    implementation:
-      | StaticPageImplementation<[Routes], Path>
-      | DynamicPageImplementation<[Routes], Path>
-  ): (props: UnparsedAsyncPageProps) => ReactNode | Promise<ReactNode> {
+  implementPage<const Path extends string, const Out>(
+    path: LazyAllPaths<[Routes], Path, "page">,
+    implementation: Implementation<[Routes], Path, Out>
+  ): (props: UnparsedAsyncPageProps) => Out {
     const safeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
@@ -872,9 +862,10 @@ interface UnsafeSerializer<
   ): string;
 }
 
-interface StaticPageImplementation<
+interface Implementation<
   in out Routes extends readonly AnyRoute[],
   in out Path extends string,
+  in out Out,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -884,23 +875,9 @@ interface StaticPageImplementation<
     props: UnparsedAsyncPageProps;
     parse: PageImplParser<Routes, Path, RouteSchema>;
     parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
-  }): ReactNode;
+  }): Out;
 }
 
-interface DynamicPageImplementation<
-  in out Routes extends readonly AnyRoute[],
-  in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
-    Path,
-    Routes
-  >
-> {
-  (args: {
-    props: UnparsedAsyncPageProps;
-    parse: PageImplParser<Routes, Path, RouteSchema>;
-    parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
-  }): Promise<ReactNode>;
-}
 interface LayoutImplementation<
   in out Routes extends readonly AnyRoute[],
   in out Path extends string,

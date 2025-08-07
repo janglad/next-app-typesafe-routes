@@ -1,5 +1,5 @@
 import { bench } from "@ark/attest";
-import { parseAsString } from "nuqs";
+import { parseAsString } from "nuqs/server";
 import z from "zod";
 import {
   layout,
@@ -293,3 +293,5 @@ const get = <const T extends string>(
 ): GetRouteSchema<T, [typeof routes]> => {
   return {} as any;
 };
+
+type Get<T extends string> = LazyAllPaths<[typeof routes], T>;
