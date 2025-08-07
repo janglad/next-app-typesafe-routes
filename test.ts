@@ -1,8 +1,14 @@
 import { parseAsString } from "nuqs";
 import * as z from "zod";
-import { layout, page, Router, type LazyAllPaths } from "./src/routing.js";
+import {
+  layout,
+  page,
+  Router,
+  type GetRoute,
+  type LazyAllPaths,
+} from "./src/routing.js";
 
-const routes = layout("", {
+const routes = page("", {
   children: [
     page("[id]", {
       params: z.string().brand("id"),
@@ -1030,90 +1036,3 @@ export const res = router.route(
   },
   {}
 );
-
-const test = layout("", {
-  query: {
-    page: {},
-    layout: {
-      layoutParam: parseAsString,
-    },
-  },
-  children: [
-    page("[id]", {
-      params: z.string().brand("id"),
-      query: {
-        page: {
-          type: z.string().brand("page"),
-        },
-        layout: {
-          layout: z.string().brand("layout"),
-        },
-      },
-      children: [page("[somepage]")],
-    }),
-  ],
-});
-
-const router2 = new Router(test);
-
-router2.route(
-  "/[id]/[somepage]",
-  {
-    somepage: "hi",
-    id: "hi",
-  },
-  {}
-);
-
-const someRouter = layout("", {
-  children: [
-    page("[id]", {
-      params: z.string().brand("id"),
-      query: {
-        page: {
-          type: z.string().brand("page"),
-        },
-        layout: {
-          layout: z.string().brand("layout"),
-        },
-      },
-    }),
-  ],
-});
-
-const get = <const T extends string>(
-  path: LazyAllPaths<[typeof routes], T>
-) => {};
-
-const somePage = page("", { children: [page("hello")] });
-
-new Router(somePage).route("", {}, {});
-
-type AbsorbUndefined<T> = T extends undefined ? never : T;
-
-type _GetPath<
-  Path extends string,
-  Route extends [any]
-> = Path extends `${infer First}/${infer Rest}`
-  ? `${First}/${_GetPath<
-      Rest,
-      [AbsorbUndefined<Route[0]["children"]>[number] & { path: First }]
-    >}`
-  : // : Path extends GetLayoutChildren<Route>["path"]
-  // ? "Last page must be a page"
-  Path extends AbsorbUndefined<Route[0]["children"]>[number]["path"]
-  ? Path
-  : AbsorbUndefined<Route[0]["children"]>[number]["path"];
-
-export type LazyAllPaths2<
-  Route extends [any],
-  Path extends string
-> = Path extends `/${infer First}`
-  ? First extends _GetPath<First, [{ children: Route }]>
-    ? Path
-    : never
-  : never;
-
-type test = LazyAllPaths2<[typeof somePage], "/">;
-
-router.route("/", {}, {});

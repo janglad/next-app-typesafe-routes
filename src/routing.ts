@@ -188,20 +188,35 @@ export const group = <
 
 type AbsorbUndefined<T> = T extends undefined ? never : T;
 
-export type LazyAllPaths<Route extends [any], Path extends string> =
-  | (string extends Path ? never : _GetPath<Path, [{ children: Route }]>)
-  | "/";
+export type LazyAllPaths<
+  Route extends [any],
+  Path extends string,
+  Type extends RouteType = RouteType
+> = string extends Path
+  ? Path
+  : _GetPath<Path, [{ children: Route }], Type> | "/";
+
+type GetChildrenOfType<
+  Route extends [any],
+  Type extends RouteType
+> = AbsorbUndefined<Route[0]["children"]>[number] & {
+  type: Type;
+};
 
 type _GetPath<
   Path extends string,
-  Route extends [any]
+  Route extends [any],
+  Type extends RouteType
 > = Path extends `${infer First}/${infer Rest}`
   ? `${First}/${_GetPath<
       Rest,
-      [AbsorbUndefined<Route[0]["children"]>[number] & { path: First }]
+      [AbsorbUndefined<Route[0]["children"]>[number] & { path: First }],
+      Type
     >}`
-  : Path extends AbsorbUndefined<Route[0]["children"]>[number]["path"]
+  : Path extends GetChildrenOfType<Route, "page">["path"]
   ? Path
+  : Path extends AbsorbUndefined<Route[0]["children"]>[number]["path"]
+  ? never
   : AbsorbUndefined<Route[0]["children"]>[number]["path"];
 
 type ParamKey<T extends string> = T extends `[${infer P}]` ? P : never;
@@ -271,6 +286,51 @@ export type GetRouteSchema<
           Prettify<
             PageQueryParamMap & GetLayoutQueryParamsSchema<RouteQuerySchema>
           >
+        >;
+      };
+    }
+  : never;
+
+type MatchingRoute<Path extends string, Routes extends [any]> = Extract<
+  Routes[0],
+  { readonly path: Path }
+>;
+
+type LayoutQueryParams<T extends [any]> = T[0]["layout"];
+type PageQueryParams<T extends [any]> = T[0]["page"];
+
+export type GetRoute<
+  Path extends string,
+  Route extends RouteBase,
+  Params extends Record<string, StandardSchemaV1<string>> = {},
+  PageQueryParamMap = {}
+> = Path extends `${infer First}/${infer Rest}`
+  ? MatchingRoute<First, [Route]> extends {
+      children: infer Children extends readonly RouteBase[];
+      query: infer Query;
+      ["~paramSchemaMap"]: infer ParamSchemaMap;
+    }
+    ? GetRoute<
+        Rest,
+        Children[number],
+        ParamSchemaMap & Params,
+        PageQueryParamMap & LayoutQueryParams<[Query]>
+      >
+    : never
+  : GetMatchingRoute<Path, [Route]> extends {
+      type: infer MatchedType;
+      ["~paramSchemaMap"]: infer ParamSchemaMap;
+      query: infer Query;
+    }
+  ? {
+      type: MatchedType;
+      params: StrictEmptyObject<Prettify<ParamSchemaMap & Params>>;
+      query: {
+        page: StrictEmptyObject<
+          Prettify<PageQueryParamMap & PageQueryParams<[Query]>>
+        >;
+        layout: StrictEmptyObject<
+          Prettify<PageQueryParamMap & LayoutQueryParams<[Query]>>
         >;
       };
     }
@@ -580,14 +640,11 @@ export class Router<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
-    path: LazyAllPaths<[Routes], Path> & string,
+    path: LazyAllPaths<[Routes], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): RouterRouteReturn {
-    const schemaRes = this.getRouteSchema(
-      // @ts-expect-error
-      path
-    );
+    const schemaRes = this.getRouteSchema(path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
     }
@@ -660,11 +717,11 @@ export class Router<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
-    path: LazyAllPaths<[Routes], Path>,
+    path: LazyAllPaths<[Routes], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
-    const res = this.route(path, params, query);
+    const res = this.route(path as string, params, query);
     if (res.ok) {
       return res.data;
     }
@@ -674,19 +731,13 @@ export class Router<
   makeUnsafeSerializer<Path extends string>(
     path: LazyAllPaths<[Routes], Path>
   ): UnsafeSerializer<[Routes], Path> {
-    return (params, query) =>
-      this.routeUnsafe(
-        // @ts-expect-error
-        path,
-        params,
-        query
-      );
+    return (params, query) => this.routeUnsafe(path as string, params, query);
   }
 
   makeSerializer<Path extends string>(
     path: LazyAllPaths<[Routes], Path>
   ): Serializer<[Routes], Path> {
-    return (params, query) => this.route(path, params, query);
+    return (params, query) => this.route(path as string, params, query);
   }
 
   parse<
@@ -696,7 +747,7 @@ export class Router<
     path: LazyAllPaths<[Routes], Path>,
     props: UnparsedPageProps
   ): ParserReturn<RouteSchema> {
-    const schemaRes = this.getRouteSchema(path);
+    const schemaRes = this.getRouteSchema(path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
     }
@@ -770,7 +821,7 @@ export class Router<
     const safeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      return this.parse(path, {
+      return this.parse(path as string, {
         params,
         searchParams,
       });
@@ -779,7 +830,7 @@ export class Router<
     const unsafeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      const res = this.parse(path, {
+      const res = this.parse(path as string, {
         params,
         searchParams,
       });

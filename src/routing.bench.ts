@@ -5,6 +5,7 @@ import {
   layout,
   page,
   Router,
+  type GetRoute,
   type GetRouteSchema,
   type LazyAllPaths,
 } from "./routing.js";
@@ -87,8 +88,8 @@ bench("Larger route config", () => {
 }).types([175, "instantiations"]);
 
 bench("Route root page", () => {
-  new Router(page("", { children: [page("")] })).route("/", {}, {});
-}).types([1079, "instantiations"]); // Adjusted based on result
+  new Router(page("", { children: [page("hi")] })).route("/", {}, {});
+}).types([1162, "instantiations"]); // Adjusted based on result
 
 const dynamicRouteRouter = new Router(
   layout("", {
@@ -121,7 +122,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([1534, "instantiations"]); // Adjusted based on result
+}).types([1585, "instantiations"]); // Adjusted based on result
 
 const deeplyNestedRouter = new Router(
   layout("", {
@@ -206,7 +207,7 @@ bench("Route deeply nested page", () => {
     },
     {}
   );
-}).types([1937, "instantiations"]); // Adjusted based on result
+}).types([1982, "instantiations"]); // Adjusted based on result
 
 const getAllPathsRoutes = page("", {
   children: [
@@ -272,7 +273,16 @@ bench("Get route schema", () => {
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     [typeof getRouteSchemaRoutes]
   >;
-}).types([309, "instantiations"]); // Adjusted based on result
+}).types([275, "instantiations"]); // Adjusted based on result
+
+type test = GetRoute<"", typeof getRouteSchemaRoutes>;
+
+bench("Get route", () => {
+  const val = {} as GetRoute<
+    "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
+    typeof getRouteSchemaRoutes
+  >;
+}).types([256, "instantiations"]); // Adjusted based on result
 
 const routes = page("", {
   children: [page("staticPage"), page("[dynamicPage]")],
