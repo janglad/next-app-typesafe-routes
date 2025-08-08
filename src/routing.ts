@@ -250,9 +250,9 @@ type StrictEmptyObject<T> = T extends {}
 export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
+  Type extends RouteType = "page",
   Params extends Record<string, StandardSchemaV1<string>> = {},
-  PageQueryParamMap = {},
-  Type extends RouteType = "page"
+  PageQueryParamMap = {}
 > = Path extends `${infer RoutePathName}/${infer Rest}`
   ? GetMatchingRoute<RoutePathName, Routes> extends {
       children: infer RoutePathChildren extends readonly RouteBase[];
@@ -262,6 +262,7 @@ export type GetRouteSchema<
     ? GetRouteSchema<
         Rest,
         RoutePathChildren,
+        Type,
         RouteParamSchemaMap & Params,
         GetLayoutQueryParamsSchema<RouteQuerySchema> & PageQueryParamMap
       >
@@ -543,12 +544,15 @@ export class Router<
     return path.match(/^\[(.*)\]$/)?.[1];
   }
 
-  getRouteSchemaCache = new Map<string, GetRouteSchemaReturn<Routes, string>>();
+  ["~getRouteSchemaCache"] = new Map<
+    string,
+    GetRouteSchemaReturn<Routes, string>
+  >();
 
-  getRouteSchema<const Path extends string>(
+  ["~getRouteSchema"]<const Path extends string>(
     path: LazyAllPaths<[Routes], Path>
   ): GetRouteSchemaReturn<Routes, Path> {
-    const cached = this.getRouteSchemaCache.get(path);
+    const cached = this["~getRouteSchemaCache"].get(path);
     if (cached !== undefined) {
       return cached as any;
     }
@@ -623,7 +627,7 @@ export class Router<
       },
     };
 
-    this.getRouteSchemaCache.set(path, returnValue as any);
+    this["~getRouteSchemaCache"].set(path, returnValue as any);
 
     return returnValue as any;
   }
@@ -638,13 +642,13 @@ export class Router<
    */
   route<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
   >(
     path: LazyAllPaths<[Routes], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): RouterRouteReturn {
-    const schemaRes = this.getRouteSchema(path as string);
+    const schemaRes = this["~getRouteSchema"](path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
     }
@@ -715,7 +719,7 @@ export class Router<
   /** Like {@link route} but throws if the route is not found. */
   routeUnsafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
   >(
     path: LazyAllPaths<[Routes], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
@@ -729,13 +733,13 @@ export class Router<
   }
 
   makeUnsafeSerializer<Path extends string>(
-    path: LazyAllPaths<[Routes], Path>
+    path: LazyAllPaths<[Routes], Path, "page">
   ): UnsafeSerializer<[Routes], Path> {
     return (params, query) => this.routeUnsafe(path as string, params, query);
   }
 
   makeSerializer<Path extends string>(
-    path: LazyAllPaths<[Routes], Path>
+    path: LazyAllPaths<[Routes], Path, "page">
   ): Serializer<[Routes], Path> {
     return (params, query) => this.route(path as string, params, query);
   }
@@ -747,7 +751,7 @@ export class Router<
     path: LazyAllPaths<[Routes], Path>,
     props: UnparsedPageProps
   ): ParserReturn<RouteSchema> {
-    const schemaRes = this.getRouteSchema(path as string);
+    const schemaRes = this["~getRouteSchema"](path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
     }
@@ -806,7 +810,7 @@ export class Router<
 
   implementPage<const Path extends string, const Out>(
     path: LazyAllPaths<[Routes], Path, "page">,
-    implementation: Implementation<[Routes], Path, Out>
+    implementation: PageImplementation<[Routes], Path, Out>
   ): (props: UnparsedAsyncPageProps) => Out {
     const safeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
@@ -862,7 +866,7 @@ interface UnsafeSerializer<
   ): string;
 }
 
-interface Implementation<
+interface PageImplementation<
   in out Routes extends readonly AnyRoute[],
   in out Path extends string,
   in out Out,
@@ -881,6 +885,7 @@ interface Implementation<
 interface LayoutImplementation<
   in out Routes extends readonly AnyRoute[],
   in out Path extends string,
+  in out Out,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
     Path,
     Routes
@@ -893,7 +898,7 @@ interface LayoutImplementation<
       parse: PageImplParser<Routes, Path, RouteSchema>;
       parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
     }
-  ): ReactNode | Promise<ReactNode>;
+  ): Out;
 }
 
 interface UnparsedAsyncPageProps {
