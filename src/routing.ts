@@ -1,5 +1,10 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { createLoader, createSerializer, type Parser } from "nuqs/server";
+import {
+  createLoader,
+  createSerializer,
+  type inferParserType,
+  type Parser,
+} from "nuqs/server";
 import type { ReactNode } from "react";
 
 type AnyParamValue = string | string[] | undefined;
@@ -366,9 +371,8 @@ type GetParserMapInput<T extends Record<string, Parser<any>>> = {
 };
 
 // TODO: check how to handle null/default values
-type GetParserMapOutput<T extends Record<string, Parser<any>>> = {
-  readonly [K in keyof T]?: T[K] extends Parser<infer U> ? U : never;
-};
+type GetParserMapOutput<T extends Record<string, Parser<any>>> =
+  inferParserType<T>;
 
 type GetParamMapInput<ParamSchema> = {
   readonly [K in keyof ParamSchema]: ParamSchema[K] extends AnyParamSchema
