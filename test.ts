@@ -1026,7 +1026,7 @@ const routes = page("", {
 
 const router = new Router(routes);
 
-export const res = router.route(
+export const res = router.routeSafe(
   "/[id]/[user]/[orderId]/[refundId]/documents",
   {
     id: "1",

@@ -773,7 +773,7 @@ export class Router<
    *   - {@link RoutingValidationError}: a provided param does not match the expected schema
    *   - {@link RoutingNoMatchingRouteError}: the path does not match any route, or the last segment does not match a page
    */
-  route<
+  routeSafe<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
   >(
@@ -849,8 +849,8 @@ export class Router<
     };
   }
 
-  /** Like {@link route} but throws if the route is not found. */
-  routeUnsafe<
+  /** Like {@link routeSafe} but throws if the route is not found. */
+  route<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
   >(
@@ -858,17 +858,11 @@ export class Router<
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
-    const res = this.route(path as string, params, query);
+    const res = this.routeSafe(path as string, params, query);
     if (res.ok) {
       return res.data;
     }
     throw res.error;
-  }
-
-  makeUnsafeSerializer<Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page">
-  ): UnsafeSerializer<[Routes], Path> {
-    return (params, query) => this.routeUnsafe(path as string, params, query);
   }
 
   makeSerializer<Path extends string>(
@@ -877,13 +871,19 @@ export class Router<
     return (params, query) => this.route(path as string, params, query);
   }
 
-  parse<
+  makeSafeSerializer<Path extends string>(
+    path: LazyAllPaths<[Routes], Path, "page">
+  ): SafeSerializer<[Routes], Path> {
+    return (params, query) => this.routeSafe(path as string, params, query);
+  }
+
+  parseSafe<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
     path: LazyAllPaths<[Routes], Path>,
     props: UnparsedPageProps
-  ): ParserReturn<RouteSchema> {
+  ): ParseSafeReturn<RouteSchema> {
     const schemaRes = this["~getRouteSchema"](path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
@@ -948,7 +948,7 @@ export class Router<
     const safeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      return this.parse(path as string, {
+      return this.parseSafe(path as string, {
         params,
         searchParams,
       });
@@ -957,7 +957,7 @@ export class Router<
     const unsafeParser = async (props: UnparsedAsyncPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      const res = this.parse(path as string, {
+      const res = this.parseSafe(path as string, {
         params,
         searchParams,
       });
@@ -972,14 +972,14 @@ export class Router<
       const unsafeParseScoped = () => unsafeParser(props);
       return implementation({
         props,
-        parse: safeParseScoped,
-        parseUnsafe: unsafeParseScoped,
+        parseSafe: safeParseScoped,
+        parse: unsafeParseScoped,
       });
     };
   }
 }
 
-interface Serializer<
+interface SafeSerializer<
   in out Routes extends readonly RouteBase[],
   in out Path extends string
 > {
@@ -989,7 +989,7 @@ interface Serializer<
   ): RouterRouteReturn;
 }
 
-interface UnsafeSerializer<
+interface Serializer<
   in out Routes extends readonly RouteBase[],
   in out Path extends string
 > {
@@ -1010,8 +1010,8 @@ interface PageImplementation<
 > {
   (args: {
     props: UnparsedAsyncPageProps;
-    parse: PageImplParser<Routes, Path, RouteSchema>;
-    parseUnsafe: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+    parseSafe: PageImplParser<Routes, Path, RouteSchema>;
+    parse: PageImplParserUnsafe<Routes, Path, RouteSchema>;
   }): Out;
 }
 
@@ -1063,10 +1063,10 @@ interface PageImplParser<
     Routes
   >
 > {
-  (): Promise<ParserReturn<RouteSchema>>;
+  (): Promise<ParseSafeReturn<RouteSchema>>;
 }
 
-type ParserReturn<RouteSchema extends GetRouteSchema<any, any>> =
+type ParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
   | {
       readonly ok: true;
       readonly data: {
@@ -1081,9 +1081,7 @@ type ParserReturn<RouteSchema extends GetRouteSchema<any, any>> =
       readonly error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
-interface ParseUnsafeReturn<
-  in out RouteSchema extends GetRouteSchema<any, any>
-> {
+interface ParseReturn<in out RouteSchema extends GetRouteSchema<any, any>> {
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: RouteQueryOutput<RouteSchema>;
 }
@@ -1096,5 +1094,5 @@ interface PageImplParserUnsafe<
     Routes
   >
 > {
-  (): Promise<ParseUnsafeReturn<RouteSchema>>;
+  (): Promise<ParseReturn<RouteSchema>>;
 }

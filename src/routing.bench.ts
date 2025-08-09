@@ -88,7 +88,7 @@ bench("Larger route config", () => {
 }).types([177, "instantiations"]);
 
 bench("Route root page", () => {
-  new Router(page("", { children: [page("hi")] })).route("/", {}, {});
+  new Router(page("", { children: [page("hi")] })).routeSafe("/", {}, {});
 }).types([1190, "instantiations"]); // Adjusted based on result
 
 const dynamicRouteRouter = new Router(
@@ -113,7 +113,7 @@ const dynamicRouteRouter = new Router(
   })
 );
 bench("Route nested dynamic page", () => {
-  dynamicRouteRouter.route(
+  dynamicRouteRouter.routeSafe(
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     {
       noValidationDynamicLayout: "param1",
@@ -197,7 +197,7 @@ const deeplyNestedRouter = new Router(
 );
 
 bench("Route deeply nested page", () => {
-  deeplyNestedRouter.route(
+  deeplyNestedRouter.routeSafe(
     "/layout/level1-layout/level2-layout/[param1]/[param2]/[param3]/deeply-nested/[param4]/final-page",
     {
       param1: "param1",

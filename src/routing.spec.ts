@@ -85,14 +85,14 @@ const router = new Router(routes);
 
 describe("Router", () => {
   it("Should route the root page correctly", (args) => {
-    const res = router.route("/", {}, {});
+    const res = router.routeSafe("/", {}, {});
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.data).toEqual("/");
     expect(res.error).toBeUndefined();
     expect(res.data).toHaveExactQueryParams({});
   });
   it("Should route a route ending with a static page correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticLayout/[noValidationDynamicLayout]/staticPage",
       {
         noValidationDynamicLayout: "param1",
@@ -105,7 +105,7 @@ describe("Router", () => {
     expect(res.data).toHaveExactQueryParams({});
   });
   it("Should route a route ending with a dynamic page correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]",
       {
         noValidationDynamicLayout: "param1",
@@ -119,7 +119,7 @@ describe("Router", () => {
     expect(res.data).toHaveExactQueryParams({});
   });
   it("Should use a schema for dynamic routes that define one", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
       {
         noValidationDynamicLayout: "param1",
@@ -134,7 +134,7 @@ describe("Router", () => {
     expect(res.data).toHaveExactQueryParams({});
   });
   it("Should URL encode params correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
       {
         noValidationDynamicLayout: "param1",
@@ -151,7 +151,7 @@ describe("Router", () => {
     expect(res.data).toHaveExactQueryParams({});
   });
   it("Should return the correct query page params", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticPageAndLayoutQuery",
       {},
       {
@@ -168,7 +168,7 @@ describe("Router", () => {
     });
   });
   it("Should properly merge parent page/layout query params", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticPageAndLayoutQuery/[dynamicNoValidation]",
       {
         dynamicNoValidation: "param1",
@@ -191,7 +191,7 @@ describe("Router", () => {
     });
   });
   it("Should not allow routing to layout params", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       // @ts-expect-error -- this should not be accepted
       "/staticLayout/[noValidationDynamicLayout]",
       {
@@ -212,7 +212,7 @@ describe("Router", () => {
   });
   it("Should not allow routing to non existing routes", (args) => {
     // @ts-expect-error -- this should not be accepted
-    const res = router.route("/staticLayout/notARoute", {});
+    const res = router.routeSafe("/staticLayout/notARoute", {});
     args.annotate(JSON.stringify(res, null, 2));
     expect(res.error).toBeDefined();
     expect(res.error?._tag).toEqual("RoutingNoMatchingRouteError");
@@ -220,7 +220,7 @@ describe("Router", () => {
   });
 
   it("Should allow routing to a page with shared query params", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/staticPageWithSharedQuery/staticPageWithSharedQueryChild",
       {},
       { param1: "param1", param2: "param2" }
@@ -238,7 +238,7 @@ describe("Router", () => {
     });
   });
   it("Should route children of a group correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/(group)/staticPageWithSharedQueryChild",
       {},
       { groupParam: "param1" }
@@ -251,7 +251,7 @@ describe("Router", () => {
     });
   });
   it("Should route children of multiple groups correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/(group)/(otherGroup)/staticPage",
       {},
       { groupParam: "param1" }
@@ -264,7 +264,7 @@ describe("Router", () => {
     });
   });
   it("Should not allow routing to groups", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       // @ts-expect-error -- this should not be accepted
       "/(group)",
       {},
@@ -284,7 +284,7 @@ describe("Router", () => {
   it("Should route catch all params correctly when the last segment is a catch all", (args) => {
     routes.children[4]["~paramSchemaMap"];
 
-    const res = router.route(
+    const res = router.routeSafe(
       "/[...catchAllNoChildren]",
       {
         catchAllNoChildren: ["param1", "param2"],
@@ -296,7 +296,7 @@ describe("Router", () => {
   });
 
   it("Should route optional catch all at end of route without param correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/[[...optionalCatchAllNoChildren]]",
       {
         optionalCatchAllNoChildren: undefined,
@@ -308,7 +308,7 @@ describe("Router", () => {
   });
 
   it("Should route optional catch all at end of route with param correctly", (args) => {
-    const res = router.route(
+    const res = router.routeSafe(
       "/[[...optionalCatchAllNoChildren]]",
       {
         optionalCatchAllNoChildren: ["param1", "param2"],
@@ -337,7 +337,7 @@ describe("Router", () => {
     it("should properly parse params", async () => {
       const res = router.implementPage(
         "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]",
-        async ({ parseUnsafe }) => {
+        async ({ parse: parseUnsafe }) => {
           const { params } = await parseUnsafe();
           return (
             params.noValidationDynamicLayout +
@@ -357,7 +357,7 @@ describe("Router", () => {
     it("Should properly parse query params", async () => {
       const res = router.implementPage(
         "/staticPageAndLayoutQuery",
-        async ({ parseUnsafe }) => {
+        async ({ parse: parseUnsafe }) => {
           const { query } = await parseUnsafe();
           return `${query.layoutParam}-${query.pageParam}`;
         }
