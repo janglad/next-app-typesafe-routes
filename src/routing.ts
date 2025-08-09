@@ -2,11 +2,15 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { createLoader, createSerializer, type Parser } from "nuqs/server";
 import type { ReactNode } from "react";
 
-type AnyParamValue = string;
+type AnyParamValue = string | string[] | undefined;
 
-type AnyParamSchema<T extends AnyParamValue = AnyParamValue> = T extends any
-  ? StandardSchemaV1<T>
-  : never;
+type AnyParamSchema =
+  // [param]
+  | StandardSchemaV1<string>
+  // [...param]
+  | StandardSchemaV1<string[]>
+  // [[...param]]
+  | StandardSchemaV1<string[] | undefined>;
 
 interface QueryParamParserMap<T> extends Record<string, Parser<T>> {}
 
@@ -33,9 +37,15 @@ export interface RouteBase {
   readonly ["~paramSchemaMap"]: Record<string, AnyParamSchema | undefined>;
 }
 
-type GetParamsSchema<Pathname extends string> = Pathname extends `[${string}]`
-  ? StandardSchemaV1<string> | undefined
-  : undefined;
+type GetParamsSchema<Pathname extends string> =
+  | (Pathname extends `[${infer Inner}]`
+      ? Inner extends `...${string}`
+        ? StandardSchemaV1<string[]>
+        : Inner extends `[...${string}]`
+        ? StandardSchemaV1<string[] | undefined>
+        : StandardSchemaV1<string>
+      : undefined)
+  | undefined;
 
 type MakeQueryParamsReturn<T> = T extends QueryParamParserMap<any>
   ? QueryParams<T, T>
@@ -74,6 +84,7 @@ export interface Page<
   readonly query: QueryParamSchema;
   readonly ["~paramSchemaMap"]: ParamSchemaMap<Pathname, ParamSchema>;
 }
+
 export const page = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname> | undefined,
@@ -219,18 +230,19 @@ type _GetPath<
   ? never
   : AbsorbUndefined<Route[0]["children"]>[number]["path"];
 
-type ParamKey<T extends string> = T extends `[${infer P}]` ? P : never;
+type ParamKey<T extends string> = T extends `[${infer Inner}]`
+  ? Inner extends `...${infer ParamName}`
+    ? ParamName
+    : Inner extends `[...${infer ParamName}]`
+    ? ParamName
+    : Inner
+  : never;
 
-type ParamSchemaMap<
-  RoutePathName extends string,
-  RouteParamSchema
-> = ParamKey<RoutePathName> extends never
-  ? {}
-  : {
-      readonly [K in ParamKey<RoutePathName>]: RouteParamSchema extends undefined
-        ? StandardSchemaV1<string>
-        : RouteParamSchema;
-    };
+type ParamSchemaMap<RoutePathName extends string, RouteParamSchema> = {
+  readonly [K in ParamKey<RoutePathName>]: RouteParamSchema extends undefined
+    ? NonNullable<GetParamsSchema<RoutePathName>>
+    : RouteParamSchema;
+};
 
 type GetMatchingRoute<
   Pathname extends string,
@@ -516,32 +528,149 @@ export class Router<
     this["~routes"] = routes;
   }
 
+  // static ["~fillInPathParams"](
+  //   path: string,
+  //   nonEncodedParams: Record<string, string | string[]>
+  // ) {
+  //   return path.replace(
+  //     /\[\[\.{3}([^\]]+)\]\]|\[\.{3}([^\]]+)\]|\[([^\]]+)\]/g,
+  //     (_, optionalCatchAllKey, catchAllKey, singleKey) => {
+  //       // Optional catch-all: [[...param]]
+  //       if (optionalCatchAllKey) {
+  //         const value = nonEncodedParams[optionalCatchAllKey];
+  //         if (
+  //           value === undefined ||
+  //           (Array.isArray(value) && value.length === 0)
+  //         ) {
+  //           return ""; // remove segment entirely
+  //         }
+  //         if (!Array.isArray(value)) {
+  //           throw new RoutingInternalDefectError({
+  //             message: `Expected array for optional catch-all param: ${optionalCatchAllKey}, received ${value} out of ${JSON.stringify(
+  //               nonEncodedParams
+  //             )}`,
+  //             metaData: {
+  //               params: nonEncodedParams,
+  //               path,
+  //               key: optionalCatchAllKey,
+  //             },
+  //           });
+  //         }
+  //         return value.map((v) => encodeURIComponent(v)).join("/");
+  //       }
+
+  //       // Required catch-all: [...param]
+  //       if (catchAllKey) {
+  //         const value = nonEncodedParams[catchAllKey];
+  //         if (!Array.isArray(value) || value.length === 0) {
+  //           throw new RoutingInternalDefectError({
+  //             message: `Missing or empty required catch-all param: ${catchAllKey}, received ${value} out of ${JSON.stringify(
+  //               nonEncodedParams
+  //             )}`,
+  //             metaData: { params: nonEncodedParams, path, key: catchAllKey },
+  //           });
+  //         }
+  //         return value.map((v) => encodeURIComponent(v)).join("/");
+  //       }
+  //       const value = nonEncodedParams[singleKey];
+
+  //       // Single param: [param]
+  //       if (value === undefined) {
+  //         throw new RoutingInternalDefectError({
+  //           message: `Missing parameter: ${singleKey}`,
+  //           metaData: { params: nonEncodedParams, path, key: singleKey },
+  //         });
+  //       }
+  //       if (Array.isArray(value)) {
+  //         throw new RoutingInternalDefectError({
+  //           message: `Expected string for single param: ${singleKey}`,
+  //           metaData: { params: nonEncodedParams, path, key: singleKey },
+  //         });
+  //       }
+  //       return encodeURIComponent(value);
+  //     }
+  //   );
+  // }
   static ["~fillInPathParams"](
     path: string,
-    nonEncodedParams: Record<string, string>
+    nonEncodedParams: Record<string, string | string[]>
   ) {
-    return path.replace(/\[([^\]]+)\]/g, (_, key) => {
-      const value = nonEncodedParams[key];
-      if (value === undefined) {
-        throw new RoutingInternalDefectError({
-          message: `Missing parameter: ${key}`,
-          metaData: {
-            params: nonEncodedParams,
-            path,
-            key,
-          },
-        });
-      }
-      return encodeURIComponent(String(value));
-    });
+    const segments = path.split("/");
+
+    return segments
+      .map((segment) => {
+        // Optional catch-all: [[...param]]
+        if (segment.startsWith("[[...") && segment.endsWith("]]")) {
+          const key = segment.slice(5, -2);
+          const value = nonEncodedParams[key];
+          if (
+            value === undefined ||
+            (Array.isArray(value) && value.length === 0)
+          ) {
+            return undefined; // remove segment entirely
+          }
+          if (!Array.isArray(value)) {
+            throw new RoutingInternalDefectError({
+              message: `Expected array for optional catch-all param: ${key}`,
+              metaData: { params: nonEncodedParams, path, key },
+            });
+          }
+          return value.map((v) => encodeURIComponent(v)).join("/");
+        }
+
+        // Required catch-all: [...param]
+        if (segment.startsWith("[...") && segment.endsWith("]")) {
+          const key = segment.slice(4, -1);
+          const value = nonEncodedParams[key];
+          if (!Array.isArray(value) || value.length === 0) {
+            throw new RoutingInternalDefectError({
+              message: `Missing or empty required catch-all param: ${key}`,
+              metaData: { params: nonEncodedParams, path, key },
+            });
+          }
+          return value.map((v) => encodeURIComponent(v)).join("/");
+        }
+
+        // Single param: [param]
+        if (segment.startsWith("[") && segment.endsWith("]")) {
+          const key = segment.slice(1, -1);
+          const value = nonEncodedParams[key];
+          if (value === undefined) {
+            throw new RoutingInternalDefectError({
+              message: `Missing parameter: ${key}`,
+              metaData: { params: nonEncodedParams, path, key },
+            });
+          }
+          if (Array.isArray(value)) {
+            throw new RoutingInternalDefectError({
+              message: `Expected string for single param: ${key}`,
+              metaData: { params: nonEncodedParams, path, key },
+            });
+          }
+          return encodeURIComponent(value);
+        }
+
+        // Static segment
+        return segment;
+      })
+      .filter((seg) => seg !== undefined) // remove optional catch-all if empty
+      .join("/");
   }
 
   static ["~stripGroups"](path: string) {
     return path.replace(/\/?\(\w+\)/g, "");
   }
-
   static ["~getDynamicRouteKey"](path: string) {
-    return path.match(/^\[(.*)\]$/)?.[1];
+    if (path.startsWith("[[...") && path.endsWith("]]")) {
+      return path.slice(5, -2);
+    }
+    if (path.startsWith("[...") && path.endsWith("]")) {
+      return path.slice(4, -1);
+    }
+    if (path.startsWith("[") && path.endsWith("]")) {
+      return path.slice(1, -1);
+    }
+    return undefined;
   }
 
   ["~getRouteSchemaCache"] = new Map<

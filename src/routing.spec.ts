@@ -76,6 +76,8 @@ const routes = page("", {
         }),
       ],
     }),
+    page("[...catchAllNoChildren]"),
+    page("[[...optionalCatchAllNoChildren]]"),
   ],
 });
 
@@ -83,9 +85,9 @@ const router = new Router(routes);
 
 describe("Router", () => {
   it("Should route the root page correctly", (args) => {
-    const res = router.route("", {}, {});
+    const res = router.route("/", {}, {});
     args.annotate(JSON.stringify(res, null, 2));
-    expect(res.data).toEqual("");
+    expect(res.data).toEqual("/");
     expect(res.error).toBeUndefined();
     expect(res.data).toHaveExactQueryParams({});
   });
@@ -277,6 +279,42 @@ describe("Router", () => {
       "matchedWrongType" satisfies RoutingNoMatchingRouteErrorType
     );
     expect(res.data).toBeUndefined();
+  });
+
+  it("Should route catch all params correctly when the last segment is a catch all", (args) => {
+    routes.children[4]["~paramSchemaMap"];
+
+    const res = router.route(
+      "/[...catchAllNoChildren]",
+      {
+        catchAllNoChildren: ["param1", "param2"],
+      },
+      {}
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.data).toEqual("/param1/param2");
+  });
+
+  it("Should route optional catch all at end of route without param correctly", (args) => {
+    const res = router.route(
+      "/[[...optionalCatchAllNoChildren]]",
+      {
+        optionalCatchAllNoChildren: undefined,
+      },
+      {}
+    );
+    args.annotate(JSON.stringify(res, null, 2));
+    expect(res.data).toEqual("/");
+  });
+
+  it("Should route optional catch all at end of route with param correctly", (args) => {
+    const res = router.route(
+      "/[[...optionalCatchAllNoChildren]]",
+      {
+        optionalCatchAllNoChildren: ["param1", "param2"],
+      },
+      {}
+    );
   });
 
   describe("implementPage", () => {
