@@ -9,11 +9,14 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist/**"
-  ],
+  "exports": {
+    ".": {
+      "react-server": "./dist/server.js",
+      "default": "./dist/client.js"
+    }
+  },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup",
     "test": "vitest run",
     "bench": "tsx src/routing.bench.ts",
     "test:withTypes": "vitest run",

@@ -8,7 +8,7 @@ import {
   Router,
   RoutingNoMatchingRouteError,
   type RoutingNoMatchingRouteErrorType,
-} from "./routing.js";
+} from "./router/server.js";
 
 const routes = page("", {
   children: [

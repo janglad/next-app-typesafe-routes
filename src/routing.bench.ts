@@ -8,7 +8,7 @@ import {
   type GetRoute,
   type GetRouteSchema,
   type LazyAllPaths,
-} from "./routing.js";
+} from "./router/server.js";
 
 bench("simple route config", () => {
   page("", {

@@ -1,4 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type { UseQueryStatesReturn } from "nuqs";
 import {
   createLoader,
   createSerializer,
@@ -524,8 +525,8 @@ export type GetRouteSchemaReturn<
       readonly error: RoutingNoMatchingRouteError;
     };
 
-export class Router<
-  in out Routes extends Page<"", any, any, any> | Layout<"", any, any, any>
+export abstract class Router<
+  const in out Routes extends RouteBase & { path: ""; type: "page" | "layout" }
 > {
   readonly ["~routes"]: Routes;
   constructor(routes: Routes) {
@@ -1076,7 +1077,7 @@ interface Serializer<
 }
 
 interface PageImplementation<
-  in out Routes extends readonly AnyRoute[],
+  in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out Out,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<

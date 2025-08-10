@@ -6,7 +6,7 @@ import {
   Router,
   type GetRoute,
   type LazyAllPaths,
-} from "./src/routing.js";
+} from "./src/router/server.js";
 
 const routes = page("", {
   children: [
