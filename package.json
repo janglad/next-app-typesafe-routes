@@ -1,11 +1,14 @@
 {
   "name": "next-app-typesafe-routes",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist/**"
+  ],
   "exports": {
     ".": {
       "react-server": "./dist/server.js",
@@ -20,7 +23,7 @@
     "typecheck": "tsc --noEmit --diagnostics",
     "test:watch": "ATTEST_skipTypes=1 vitest",
     "local-release": "changeset version && changeset publish",
-    "prepublishOnly": "npm run ci"
+    "prepublishOnly": "pnpm build"
   },
   "homepage": "https://github.com/janglad/next-app-typesafe-routes",
   "repository": {
