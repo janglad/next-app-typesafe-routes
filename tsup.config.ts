@@ -5,6 +5,6 @@ export default defineConfig({
     client: "src/router/client.ts",
     server: "src/router/server.ts",
   },
-  format: ["cjs", "esm"],
+  format: ["esm"],
   dts: true,
 });

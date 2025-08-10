@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { UseQueryStatesReturn } from "nuqs";
+import type { ParserBuilder, UseQueryStatesReturn } from "nuqs";
 import {
   createLoader,
   createSerializer,
@@ -8,9 +8,9 @@ import {
 } from "nuqs/server";
 import type { ReactNode } from "react";
 
-type AnyParamValue = string | string[] | undefined;
+export type AnyParamValue = string | string[] | undefined;
 
-type AnyParamSchema =
+export type AnyParamSchema =
   // [param]
   | StandardSchemaV1<string>
   // [...param]
@@ -18,9 +18,9 @@ type AnyParamSchema =
   // [[...param]]
   | StandardSchemaV1<string[] | undefined>;
 
-interface QueryParamParserMap<T> extends Record<string, Parser<T>> {}
+export interface QueryParamParserMap<T> extends Record<string, Parser<T>> {}
 
-interface QueryParams<
+export interface QueryParams<
   Layout extends QueryParamParserMap<any> = {},
   Page extends QueryParamParserMap<any> = {}
 > {
@@ -28,12 +28,7 @@ interface QueryParams<
   readonly page: Page;
 }
 
-type AnyRoute =
-  | Page<string, GetParamsSchema<string>, QueryParams, readonly any[]>
-  | Layout<string, GetParamsSchema<string>, QueryParams, readonly any[]>
-  | Group<`(${string})`, readonly any[], QueryParams>;
-
-type RouteType = "page" | "layout" | "group";
+export type RouteType = "page" | "layout" | "group";
 export interface RouteBase {
   readonly type: RouteType;
   readonly path: string;
@@ -43,7 +38,7 @@ export interface RouteBase {
   readonly ["~paramSchemaMap"]: Record<string, AnyParamSchema | undefined>;
 }
 
-type GetParamsSchema<Pathname extends string> =
+export type GetParamsSchema<Pathname extends string> =
   | (Pathname extends `[${infer Inner}]`
       ? Inner extends `...${string}`
         ? StandardSchemaV1<string[]>
@@ -259,11 +254,7 @@ type GetPageQueryParamsSchema<T> = T extends QueryParams ? T["page"] : {};
 type GetLayoutQueryParamsSchema<T> = T extends QueryParams ? T["layout"] : {};
 
 // TODO: fine better way to solve this
-type StrictEmptyObject<T> = T extends {}
-  ? keyof T extends never
-    ? Record<PropertyKey, never>
-    : T
-  : T;
+type StrictEmptyObject<T> = T;
 
 export type GetRouteSchema<
   Path extends string,
@@ -367,15 +358,15 @@ export type SchemaOutput<T> = T extends StandardSchemaV1
   ? StandardSchemaV1.InferOutput<T>
   : never;
 
-type GetParserMapInput<T extends Record<string, Parser<any>>> = {
+export type GetParserMapInput<T extends Record<string, Parser<any>>> = {
   readonly [K in keyof T]?: T[K] extends Parser<infer U> ? U | null : never;
 };
 
 // TODO: check how to handle null/default values
-type GetParserMapOutput<T extends Record<string, Parser<any>>> =
+export type GetParserMapOutput<T extends Record<string, Parser<any>>> =
   inferParserType<T>;
 
-type GetParamMapInput<ParamSchema> = {
+export type GetParamMapInput<ParamSchema> = {
   readonly [K in keyof ParamSchema]: ParamSchema[K] extends AnyParamSchema
     ? SchemaInput<ParamSchema[K]>
     : never;
@@ -1106,11 +1097,13 @@ type PageParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
       readonly error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
-interface PageParseReturn<in out RouteSchema extends GetRouteSchema<any, any>> {
+export interface PageParseReturn<
+  in out RouteSchema extends GetRouteSchema<any, any>
+> {
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: PageQueryOutput<RouteSchema>;
 }
-interface PageImplParser<
+export interface PageImplParser<
   in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
@@ -1120,7 +1113,7 @@ interface PageImplParser<
 > {
   (): Promise<PageParseSafeReturn<RouteSchema>>;
 }
-interface PageImplParserUnsafe<
+export interface PageImplParserUnsafe<
   in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
@@ -1131,7 +1124,7 @@ interface PageImplParserUnsafe<
   (): Promise<PageParseReturn<RouteSchema>>;
 }
 
-interface LayoutImplementation<
+export interface LayoutImplementation<
   in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out Out,
@@ -1148,7 +1141,9 @@ interface LayoutImplementation<
   }): Out;
 }
 
-type LayoutParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
+export type LayoutParseSafeReturn<
+  RouteSchema extends GetRouteSchema<any, any>
+> =
   | {
       readonly ok: true;
       readonly data: {
@@ -1163,13 +1158,13 @@ type LayoutParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
       readonly error: RoutingValidationError | RoutingNoMatchingRouteError;
     };
 
-interface LayoutParseReturn<
+export interface LayoutParseReturn<
   in out RouteSchema extends GetRouteSchema<any, any>
 > {
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: LayoutQueryOutput<RouteSchema>;
 }
-interface LayoutImplParser<
+export interface LayoutImplParser<
   in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
@@ -1179,7 +1174,7 @@ interface LayoutImplParser<
 > {
   (): Promise<LayoutParseSafeReturn<RouteSchema>>;
 }
-interface LayoutImplParserUnsafe<
+export interface LayoutImplParserUnsafe<
   in out Routes extends readonly RouteBase[],
   in out Path extends string,
   in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
@@ -1190,25 +1185,25 @@ interface LayoutImplParserUnsafe<
   (): Promise<LayoutParseReturn<RouteSchema>>;
 }
 
-type MapAwaited<T> = {
+export type MapAwaited<T> = {
   [K in keyof T]: Awaited<T[K]>;
 };
 
-interface RawPageProps {
+export interface RawPageProps {
   readonly params: Promise<Record<string, string | string[]>>;
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-interface RawLayoutProps extends RawPageProps {
+export interface RawLayoutProps extends RawPageProps {
   children: ReactNode;
 }
 
-type RouteParamsOutput<RouteSchema extends GetRouteSchema<any, any>> = {
+export type RouteParamsOutput<RouteSchema extends GetRouteSchema<any, any>> = {
   [K in keyof RouteSchema["params"]]: SchemaOutput<RouteSchema["params"][K]>;
 };
 
-type PageQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
+export type PageQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
   GetParserMapOutput<RouteSchema["query"]["page"]>;
 
-type LayoutQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
+export type LayoutQueryOutput<RouteSchema extends GetRouteSchema<any, any>> =
   GetParserMapOutput<RouteSchema["query"]["layout"]>;
