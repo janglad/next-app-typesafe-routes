@@ -8,7 +8,6 @@ Simple type safe routing for Next.js app router
 
 - [ ] Figure out best way to handle parsing props on server/client (wrap client side hooks?)
 - [ ] Look into parallel/intercepting routes
-- [ ] Add support for catch all routes (e.g. `[...path]`)
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Remove `page` on `query` for `layout` routes
 - [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
