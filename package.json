@@ -1,6 +1,6 @@
 {
-  "name": "typesafe-routes",
-  "version": "0.0.1",
+  "name": "next-app-typesafe-routes",
+  "version": "0.0.2",
   "description": "",
   "type": "module",
   "publishConfig": {
@@ -18,7 +18,9 @@
     "bench": "tsx src/routing.bench.ts",
     "test:withTypes": "vitest run",
     "typecheck": "tsc --noEmit --diagnostics",
-    "test:watch": "ATTEST_skipTypes=1 vitest"
+    "test:watch": "ATTEST_skipTypes=1 vitest",
+    "local-release": "changeset version && changeset publish",
+    "prepublishOnly": "npm run ci"
   },
   "homepage": "https://github.com/janglad/next-app-typesafe-routes",
   "repository": {
@@ -31,6 +33,7 @@
   "packageManager": "pnpm@10.12.4",
   "devDependencies": {
     "@ark/attest": "^0.48.2",
+    "@changesets/cli": "^2.29.5",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "react": "^19.1.1",
