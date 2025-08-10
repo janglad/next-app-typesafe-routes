@@ -6,7 +6,9 @@ Simple type safe routing for Next.js app router
 
 ### Features
 
-- [ ] Figure out best way to handle parsing props on server/client (wrap client side hooks?)
+- [ ] Implement `useParams`
+- [ ] Implement `useSelectedLayoutSegment`
+- [ ] Implement `useSelectedLayoutSegments`
 - [ ] Look into parallel/intercepting routes
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Remove `page` on `query` for `layout` routes
@@ -66,7 +68,10 @@ router.route("/items/[itemId]", {}, {});
 router.route("/items/[itemId]", { itemId: "123" }, {});
 
 export default router.implementPage("/(auth)/sign-in", async (props) => {
-  const { query } = await props.parseUnsafe();
+  const { query } = await props.parse();
   return <div>{query.email}</div>;
 });
+
+// Only available in client components
+const [query, setQuery] = router.usePageQuery("/(auth)/sign-in");
 ```
