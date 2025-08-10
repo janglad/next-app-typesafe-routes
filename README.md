@@ -11,7 +11,6 @@ Simple type safe routing for Next.js app router
 - [ ] Implement `useSelectedLayoutSegments`
 - [ ] Look into parallel/intercepting routes
 - [ ] Think about API of passing info (one big object, optional stuff etc)
-- [ ] Remove `page` on `query` for `layout` routes
 - [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
 - [ ] Support symmetric parsing of params
 
@@ -75,5 +74,5 @@ export default router.implementPage("/(auth)/sign-in", async (props) => {
 });
 
 // Only available in client components
-const [query, setQuery] = router.usePageQuery("/(auth)/sign-in");
+const [query, setQuery] = router.useLayoutQuery("/(auth)");
 ```

@@ -52,22 +52,35 @@ export type GetParamsSchema<Pathname extends string> =
       : undefined)
   | undefined;
 
-type MakeQueryParamsReturn<T> = T extends QueryParamParserMap<any>
-  ? QueryParams<T, T>
+type MakeQueryParamsReturn<
+  T,
+  Type extends RouteType
+> = T extends QueryParamParserMap<any>
+  ? QueryParams<T, Type extends "page" ? T : {}>
   : T;
 
 const makeQueryParams = <
   // const PageParserMap extends QueryParamParserMap<any>,
   // const LayoutParserMap extends QueryParamParserMap<any> = PageParserMap
-  const ParserMap extends QueryParamParserMap<any> | QueryParams<any, any>
+  const ParserMap extends QueryParamParserMap<any> | QueryParams<any, any>,
+  const Type extends RouteType
 >(
-  parser: ParserMap
-): MakeQueryParamsReturn<ParserMap> => {
+  parser: ParserMap,
+  type: Type
+): MakeQueryParamsReturn<ParserMap, Type> => {
   if (
     Object.keys(parser).length === 2 &&
-    ("layout" in parser || "page" in parser)
+    "layout" in parser &&
+    "page" in parser
   ) {
     return parser as any;
+  }
+
+  if (type !== "page") {
+    return {
+      page: {},
+      layout: parser,
+    } as any;
   }
 
   return {
@@ -108,7 +121,7 @@ export const page = <
 ): Page<
   Pathname,
   ParamsSchema,
-  MakeQueryParamsReturn<QueryParamsSchema>,
+  MakeQueryParamsReturn<QueryParamsSchema, "page">,
   Children
 > => ({
   type: "page",
@@ -116,8 +129,11 @@ export const page = <
   params: config.params as ParamsSchema,
   children: config.children as any,
   query: (config.query
-    ? makeQueryParams(config.query)
-    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+    ? makeQueryParams(config.query, "page")
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<
+    QueryParamsSchema,
+    "page"
+  >,
   ["~paramSchemaMap"]: {} as ParamSchemaMap<Pathname, ParamsSchema>,
 });
 
@@ -152,7 +168,7 @@ export const layout = <
 ): Layout<
   Pathname,
   ParamsSchema,
-  MakeQueryParamsReturn<QueryParamsSchema>,
+  MakeQueryParamsReturn<QueryParamsSchema, "layout">,
   Children
 > => ({
   type: "layout",
@@ -160,8 +176,11 @@ export const layout = <
   params: config.params as ParamsSchema,
   children: (config.children ?? []) as Children,
   query: (config.query
-    ? makeQueryParams(config.query)
-    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+    ? makeQueryParams(config.query, "layout")
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<
+    QueryParamsSchema,
+    "layout"
+  >,
   ["~paramSchemaMap"]: {} as ParamSchemaMap<Pathname, ParamsSchema>,
 });
 
@@ -191,13 +210,20 @@ export const group = <
     readonly children: Children;
     readonly query?: QueryParamsSchema;
   }
-): Group<Pathname, Children, MakeQueryParamsReturn<QueryParamsSchema>> => ({
+): Group<
+  Pathname,
+  Children,
+  MakeQueryParamsReturn<QueryParamsSchema, "group">
+> => ({
   type: "group",
   path: path,
   children: (config.children ?? []) as Children,
   query: (config.query
-    ? makeQueryParams(config.query)
-    : { page: {}, layout: {} }) as MakeQueryParamsReturn<QueryParamsSchema>,
+    ? makeQueryParams(config.query, "group")
+    : { page: {}, layout: {} }) as MakeQueryParamsReturn<
+    QueryParamsSchema,
+    "group"
+  >,
   params: undefined,
   ["~paramSchemaMap"]: {},
 });
