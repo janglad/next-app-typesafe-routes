@@ -1,6 +1,7 @@
 import { parseAsString } from "nuqs";
 import * as z from "zod";
 import {
+  group,
   layout,
   page,
   Router,
@@ -12,6 +13,14 @@ const routes = page("", {
   children: [
     page("[id]", {
       params: z.string().brand("id"),
+      query: {
+        page: {
+          idPageQuery: parseAsString,
+        },
+        layout: {
+          idLayoutQuery: parseAsString,
+        },
+      },
       children: [
         page("somepage"),
         page("about"),
@@ -1036,3 +1045,23 @@ export const res = router.routeSafe(
   },
   {}
 );
+
+const [query2] = router.useLayoutQuery("/[id]");
+
+const [query] = new Router(
+  page("", {
+    children: [
+      layout("auth", {
+        query: {
+          page: {
+            testing: parseAsString,
+          },
+          layout: {
+            testing: parseAsString,
+          },
+        },
+        children: [page("hi")],
+      }),
+    ],
+  })
+).useLayoutQuery("/auth");

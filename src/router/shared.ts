@@ -206,7 +206,7 @@ export type LazyAllPaths<
   Type extends RouteType = RouteType
 > = string extends Path
   ? Path
-  : _GetPath<Path, [{ children: Route }], Type> | "/";
+  : (_GetPath<Path, [{ children: Route }], Type> & string) | "/";
 
 type GetChildrenOfType<
   Route extends [any],
@@ -259,7 +259,7 @@ type StrictEmptyObject<T> = T;
 export type GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
-  Type extends RouteType = "page",
+  Type extends RouteType = RouteType,
   Params extends Record<string, StandardSchemaV1<string>> = {},
   PageQueryParamMap = {}
 > = Path extends `${infer RoutePathName}/${infer Rest}`
@@ -856,7 +856,7 @@ export abstract class Router<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
   >(
-    path: LazyAllPaths<[Routes], Path, "page">,
+    path: LazyAllPaths<[Routes], Path, "page"> & string,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
@@ -1045,6 +1045,13 @@ export abstract class Router<
       });
     };
   }
+
+  abstract usePageQuery<const Path extends string>(
+    path: LazyAllPaths<[Routes], Path, "page"> & string
+  ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["page"]>;
+  abstract useLayoutQuery<const Path extends string>(
+    path: LazyAllPaths<[Routes], Path> & string
+  ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]>;
 }
 
 interface SafeSerializer<

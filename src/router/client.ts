@@ -8,7 +8,10 @@ import {
 import { useQueryStates, type UseQueryStatesReturn } from "nuqs";
 
 export class Router<
-  const in out Routes extends RouteBase & { path: ""; type: "page" | "layout" }
+  const in out Routes extends RouteBase & {
+    path: "";
+    type: "page" | "layout";
+  }
 > extends RouterBase<Routes> {
   usePageQuery<const Path extends string>(
     path: LazyAllPaths<[Routes], Path, "page">
