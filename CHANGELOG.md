@@ -1,5 +1,11 @@
 # next-app-typesafe-routes
 
+## 0.0.4
+
+### Patch Changes
+
+- b2892d3: Fix useLayoutQuery not being properly typed
+
 ## 0.0.3
 
 ### Patch Changes
