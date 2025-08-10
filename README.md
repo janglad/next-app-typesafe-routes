@@ -21,6 +21,8 @@ Simple type safe routing for Next.js app router
 
 ## Example
 
+![Example](./README-assets//autocomplete.webp)
+
 ```tsx
 const router = new Router(
   page("", {
