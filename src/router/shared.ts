@@ -1,5 +1,9 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { ParserBuilder, UseQueryStatesReturn } from "nuqs";
+import type {
+  ParserBuilder,
+  UseQueryStatesOptions,
+  UseQueryStatesReturn,
+} from "nuqs";
 import {
   createLoader,
   createSerializer,
@@ -1047,10 +1051,16 @@ export abstract class Router<
   }
 
   abstract usePageQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page"> & string
+    path: LazyAllPaths<[Routes], Path, "page"> & string,
+    options?: Partial<
+      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+    >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["page"]>;
   abstract useLayoutQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path> & string
+    path: LazyAllPaths<[Routes], Path> & string,
+    options?: Partial<
+      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+    >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]>;
 }
 

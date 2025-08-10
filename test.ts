@@ -1,4 +1,4 @@
-import { parseAsString } from "nuqs";
+import { parseAsString, useQueryStates } from "nuqs";
 import * as z from "zod";
 import {
   group,
@@ -1064,4 +1064,6 @@ const [query] = new Router(
       }),
     ],
   })
-).useLayoutQuery("/auth");
+).useLayoutQuery("/auth", {});
+
+useQueryStates;

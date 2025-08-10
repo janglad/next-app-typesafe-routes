@@ -5,7 +5,11 @@ import {
   type RouteBase,
 } from "./shared.js";
 
-import { useQueryStates, type UseQueryStatesReturn } from "nuqs";
+import {
+  useQueryStates,
+  type UseQueryStatesOptions,
+  type UseQueryStatesReturn,
+} from "nuqs";
 
 export class Router<
   const in out Routes extends RouteBase & {
@@ -14,24 +18,30 @@ export class Router<
   }
 > extends RouterBase<Routes> {
   usePageQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page">
+    path: LazyAllPaths<[Routes], Path, "page">,
+    options?: Partial<
+      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+    >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["page"]> {
     const schema = this["~getRouteSchema"](path as string);
     if (schema.error) {
       throw schema.error;
     }
 
-    return useQueryStates(schema.data.schema.query.page);
+    return useQueryStates(schema.data.schema.query.page, options);
   }
   useLayoutQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path>
+    path: LazyAllPaths<[Routes], Path>,
+    options?: Partial<
+      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["layout"]>
+    >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]> {
     const schema = this["~getRouteSchema"](path as string);
     if (schema.error) {
       throw schema.error;
     }
 
-    return useQueryStates(schema.data.schema.query.layout);
+    return useQueryStates(schema.data.schema.query.layout, options);
   }
 }
 
