@@ -418,6 +418,7 @@ describe("Router", () => {
         params: Promise.resolve({}),
         searchParams: Promise.resolve({
           layoutParam: "param1",
+          // Input here is just typed as generic query params input, so this won't error
           pageParam: "param2",
         }),
         children: undefined,

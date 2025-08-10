@@ -434,29 +434,29 @@ export type RoutingNoMatchingRouteErrorType = "noMatch" | "matchedWrongType";
 export class RoutingNoMatchingRouteError extends TaggedError {
   readonly _tag = "RoutingNoMatchingRouteError";
   readonly path: string;
-  readonly pathCandidates: readonly string[];
-  readonly actual: string;
+  readonly expectedTypes: readonly RouteType[];
+  readonly pathCandidates: readonly { path: string; type: RouteType }[];
   readonly type: RoutingNoMatchingRouteErrorType;
 
   constructor(args: {
     readonly path: string;
-    readonly pathCandidates: readonly string[];
-    readonly actual: string;
+    readonly expectedTypes: readonly RouteType[];
+    readonly pathCandidates: readonly { path: string; type: RouteType }[];
     readonly type: RoutingNoMatchingRouteErrorType;
   }) {
     super(
-      `${
-        args.type === "noMatch" ? "No matching route" : "Matched wrong type"
-      } for path ${args.path}, expected one of [${args.pathCandidates.join(
+      `No matching route found for path ${
+        args.path
+      }, excepted to find a type ${args.expectedTypes.join(
         ", "
-      )}] but got ${
-        args.actual
-      }. Note that the last segment of a path should always match a page.`
+      )} out of ${args.pathCandidates
+        .map((p) => `${p.path} (${p.type})`)
+        .join(", ")}`
     );
     this.path = args.path;
     this.pathCandidates = args.pathCandidates;
-    this.actual = args.actual;
     this.type = args.type;
+    this.expectedTypes = args.expectedTypes;
   }
 
   static is(error: unknown): error is RoutingNoMatchingRouteError {
@@ -657,7 +657,6 @@ export class Router<
         // Static segment
         return segment;
       })
-      .filter((seg) => seg !== undefined) // remove optional catch-all if empty
       .join("/");
   }
 
@@ -697,10 +696,43 @@ export class Router<
         page: {} as Record<string, Parser<any>>,
       },
     };
-    let pathSegments = path.split("/").splice(1);
-    let currentRoute: RouteBase = this["~routes"];
+    let pathSegments = path.split("/");
+
+    if (path.endsWith("/")) {
+      pathSegments.pop();
+    }
+
+    let routeCandidates: readonly RouteBase[] = [this["~routes"]];
+    let matchedType: RouteType | undefined;
 
     while (true) {
+      const currentSegment = pathSegments.shift();
+
+      if (currentSegment === undefined) {
+        break;
+      }
+
+      const currentRoute = routeCandidates.find(
+        (route) => route.path === currentSegment
+      );
+
+      if (currentRoute === undefined) {
+        return {
+          ok: false,
+          error: new RoutingNoMatchingRouteError({
+            path: path,
+            pathCandidates: routeCandidates.map((route) => ({
+              path: route.path,
+              type: route["type"],
+            })),
+            expectedTypes: ["page", "layout", "group"],
+            type: "noMatch",
+          }),
+        };
+      }
+      routeCandidates = currentRoute.children ?? [];
+      matchedType = currentRoute["type"];
+
       const dynamicRouteKey = Router["~getDynamicRouteKey"](currentRoute.path);
       if (dynamicRouteKey !== undefined) {
         if (currentRoute.params !== undefined) {
@@ -728,35 +760,13 @@ export class Router<
           ] as any;
         }
       }
-
-      if (pathSegments.length === 0) {
-        break;
-      }
-
-      const newRoute = currentRoute.children?.find(
-        (route) => route.path === pathSegments[0]
-      );
-      if (newRoute === undefined) {
-        return {
-          ok: false,
-          error: new RoutingNoMatchingRouteError({
-            path: path,
-            pathCandidates:
-              currentRoute.children?.map((route) => route.path) ?? [],
-            actual: pathSegments[0]!,
-            type: "noMatch",
-          }),
-        };
-      }
-      currentRoute = newRoute;
-      pathSegments.shift();
     }
 
     const returnValue = {
       ok: true as const,
       data: {
         schema: res as GetRouteSchema<Path, [Routes]>,
-        matchedType: currentRoute["type"],
+        matchedType: matchedType,
       },
     };
 
@@ -791,8 +801,8 @@ export class Router<
         ok: false,
         error: new RoutingNoMatchingRouteError({
           path: path,
-          pathCandidates: [path],
-          actual: path,
+          pathCandidates: [{ path: path, type: schemaRes.data.matchedType }],
+          expectedTypes: ["page"],
           type: "matchedWrongType",
         }),
       };
@@ -895,8 +905,8 @@ export class Router<
         ok: false,
         error: new RoutingNoMatchingRouteError({
           path: path,
-          pathCandidates: [path],
-          actual: path,
+          pathCandidates: [{ path: path, type: schemaRes.data.matchedType }],
+          expectedTypes: ["page"],
           type: "matchedWrongType",
         }),
       };
