@@ -324,13 +324,13 @@ describe("Router", () => {
         () => "Output"
       );
       expect(res).not.toBeInstanceOf(Promise);
-      expect(res(emptyProps)).toEqual("Output");
+      expect(res(emptyPageProps)).toEqual("Output");
     });
     it("should return a async function if the implementation is async", async () => {
       const res = router.implementPage(
         "/staticPageAndLayoutQuery",
         async () => "Output"
-      )(emptyProps);
+      )(emptyPageProps);
       expect(res).toBeInstanceOf(Promise);
       await expect(res).resolves.toEqual("Output");
     });
@@ -371,9 +371,70 @@ describe("Router", () => {
       await expect(res).resolves.toEqual("param1-param2");
     });
   });
+  describe("implementLayout", () => {
+    it("should return a sync function if the implementation is sync", () => {
+      const res = router.implementLayout(
+        "/staticPageAndLayoutQuery",
+        () => "Output"
+      );
+      expect(res).not.toBeInstanceOf(Promise);
+      expect(res(emptyLayoutProps)).toEqual("Output");
+    });
+    it("should return a async function if the implementation is async", async () => {
+      const res = router.implementLayout(
+        "/staticPageAndLayoutQuery",
+        async () => "Output"
+      )(emptyLayoutProps);
+      expect(res).toBeInstanceOf(Promise);
+      await expect(res).resolves.toEqual("Output");
+    });
+    it("should properly parse params", async () => {
+      const res = router.implementLayout(
+        "/staticLayout/[noValidationDynamicLayout]",
+        async ({ parse: parseUnsafe }) => {
+          const { params } = await parseUnsafe();
+          return params.noValidationDynamicLayout;
+        }
+      )({
+        params: Promise.resolve({
+          noValidationDynamicLayout: "param1",
+        }),
+        searchParams: Promise.resolve({}),
+        children: undefined,
+      });
+      await expect(res).resolves.toEqual("param1");
+    });
+    it("Should properly parse query params", async () => {
+      const res = router.implementLayout(
+        "/staticPageAndLayoutQuery",
+        async ({ parse: parseUnsafe }) => {
+          const { query } = await parseUnsafe();
+          return `${query.layoutParam}-${
+            // @ts-expect-error -- this should not be accepted
+            query.pageParam
+          }`;
+        }
+      )({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve({
+          layoutParam: "param1",
+          // @ts-expect-error -- this should not be accepted
+          pageParam: "param2",
+        }),
+        children: undefined,
+      });
+      await expect(res).resolves.toEqual("param1-undefined");
+    });
+  });
 });
 
-const emptyProps = {
+const emptyPageProps = {
   searchParams: Promise.resolve({}),
   params: Promise.resolve({}),
+};
+
+const emptyLayoutProps = {
+  searchParams: Promise.resolve({}),
+  params: Promise.resolve({}),
+  children: undefined,
 };
