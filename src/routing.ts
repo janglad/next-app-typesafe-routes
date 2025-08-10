@@ -109,7 +109,7 @@ export const page = <
   Pathname,
   ParamsSchema,
   MakeQueryParamsReturn<QueryParamsSchema>,
-  undefined extends Children ? undefined : Children
+  Children
 > => ({
   type: "page",
   path: path,
@@ -877,16 +877,29 @@ export class Router<
     return (params, query) => this.routeSafe(path as string, params, query);
   }
 
-  parseSafe<
+  ["~parseSafe"]<
     const Path extends string,
     const RouteSchema extends GetRouteSchema<Path, [Routes]>
   >(
     path: LazyAllPaths<[Routes], Path>,
+    target: "page" | "layout",
     props: MapAwaited<RawPageProps>
   ): PageParseSafeReturn<RouteSchema> {
     const schemaRes = this["~getRouteSchema"](path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
+    }
+
+    if (target === "page" && schemaRes.data.matchedType !== "page") {
+      return {
+        ok: false,
+        error: new RoutingNoMatchingRouteError({
+          path: path,
+          pathCandidates: [path],
+          actual: path,
+          type: "matchedWrongType",
+        }),
+      };
     }
 
     const parsedParams: Record<string, string> = {};
@@ -924,11 +937,7 @@ export class Router<
         parsedParams[key] = parseRes.value;
       }
     }
-    const queryParamParser = createLoader(
-      schemaRes.data.schema.query[
-        schemaRes.data.matchedType === "page" ? "page" : "layout"
-      ]
-    );
+    const queryParamParser = createLoader(schemaRes.data.schema.query[target]);
     // TODO: check if this can throw
     const queryParseRes = queryParamParser(props.searchParams);
 
@@ -941,6 +950,26 @@ export class Router<
     };
   }
 
+  parsePageSafe<
+    const Path extends string,
+    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
+  >(
+    path: LazyAllPaths<[Routes], Path, "page">,
+    props: MapAwaited<RawPageProps>
+  ): PageParseSafeReturn<RouteSchema> {
+    return this["~parseSafe"](path as string, "page", props);
+  }
+
+  parseLayoutSafe<
+    const Path extends string,
+    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+  >(
+    path: LazyAllPaths<[Routes], Path>,
+    props: MapAwaited<RawPageProps>
+  ): LayoutParseSafeReturn<RouteSchema> {
+    return this["~parseSafe"](path as string, "layout", props);
+  }
+
   implementPage<const Path extends string, const Out>(
     path: LazyAllPaths<[Routes], Path, "page">,
     implementation: PageImplementation<[Routes], Path, Out>
@@ -948,7 +977,7 @@ export class Router<
     const safeParser = async (props: RawPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      return this.parseSafe(path as string, {
+      return this.parsePageSafe(path as string, {
         params,
         searchParams,
       });
@@ -957,7 +986,7 @@ export class Router<
     const unsafeParser = async (props: RawPageProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      const res = this.parseSafe(path as string, {
+      const res = this.parsePageSafe(path as string, {
         params,
         searchParams,
       });
@@ -985,7 +1014,7 @@ export class Router<
     const safeParser = async (props: RawLayoutProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      return this.parseSafe(path as string, {
+      return this.parseLayoutSafe(path as string, {
         params,
         searchParams,
       });
@@ -994,7 +1023,7 @@ export class Router<
     const unsafeParser = async (props: RawLayoutProps) => {
       const params = await props.params;
       const searchParams = await props.searchParams;
-      const res = this.parseSafe(path as string, {
+      const res = this.parseLayoutSafe(path as string, {
         params,
         searchParams,
       });

@@ -418,7 +418,6 @@ describe("Router", () => {
         params: Promise.resolve({}),
         searchParams: Promise.resolve({
           layoutParam: "param1",
-          // @ts-expect-error -- this should not be accepted
           pageParam: "param2",
         }),
         children: undefined,
