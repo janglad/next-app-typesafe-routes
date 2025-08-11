@@ -14,13 +14,13 @@ bench("simple route config", () => {
   page("", {
     children: [page("staticPage")],
   });
-}).types([29, "instantiations"]);
+}).types([27, "instantiations"]);
 
 bench("Simple route config with inferred params", () => {
   page("", {
     children: [page("[dynamicPage]")],
   });
-}).types([29, "instantiations"]); // Adjusted based on result
+}).types([27, "instantiations"]); // Adjusted based on result
 
 bench("Simple route config with query params", () => {
   page("", {
@@ -37,7 +37,7 @@ bench("Simple route config with query params", () => {
       }),
     ],
   });
-}).types([59, "instantiations"]);
+}).types([54, "instantiations"]);
 
 bench("Larger route config", () => {
   page("", {
@@ -85,11 +85,11 @@ bench("Larger route config", () => {
       }),
     ],
   });
-}).types([177, "instantiations"]);
+}).types([164, "instantiations"]);
 
 bench("Route root page", () => {
   new Router(page("", { children: [page("hi")] })).routeSafe("/", {}, {});
-}).types([1190, "instantiations"]); // Adjusted based on result
+}).types([1034, "instantiations"]); // Adjusted based on result
 
 const dynamicRouteRouter = new Router(
   layout("", {
@@ -122,7 +122,7 @@ bench("Route nested dynamic page", () => {
     },
     {}
   );
-}).types([1516, "instantiations"]); // Adjusted based on result
+}).types([1429, "instantiations"]); // Adjusted based on result
 
 const deeplyNestedRouter = new Router(
   layout("", {
@@ -207,7 +207,7 @@ bench("Route deeply nested page", () => {
     },
     {}
   );
-}).types([1919, "instantiations"]); // Adjusted based on result
+}).types([2082, "instantiations"]); // Adjusted based on result
 
 const getAllPathsRoutes = page("", {
   children: [
