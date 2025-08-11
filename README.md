@@ -75,4 +75,7 @@ export default router.implementPage("/(auth)/sign-in", async (props) => {
 
 // Only available in client components
 const [query, setQuery] = router.useLayoutQuery("/(auth)");
+
+const selectedLayoutSegment = router.useSelectedLayoutSegment("/(auth)");
+// "sign-in" | "sign-up"
 ```
