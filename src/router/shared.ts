@@ -37,7 +37,7 @@ export interface RouteBase {
   readonly type: RouteType;
   readonly path: string;
   readonly params: AnyParamSchema | undefined;
-  readonly query: QueryParams;
+  readonly query: QueryParams | undefined;
   readonly children: readonly RouteBase[] | undefined;
   readonly ["~paramSchemaMap"]: Record<string, AnyParamSchema | undefined>;
 }
@@ -92,7 +92,7 @@ const makeQueryParams = <
 export interface Page<
   in out Pathname extends string,
   in out ParamSchema extends GetParamsSchema<Pathname>,
-  in out QueryParamSchema extends QueryParams,
+  in out QueryParamSchema extends QueryParams | undefined,
   in out Children extends readonly RouteBase[] | undefined
 > extends RouteBase {
   readonly type: "page";
@@ -106,10 +106,10 @@ export interface Page<
 export const page = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname> | undefined,
-  const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
-    layout: {};
-    page: {};
-  },
+  const QueryParamsSchema extends
+    | QueryParams
+    | QueryParamParserMap<any>
+    | undefined = undefined,
   const Children extends readonly RouteBase[] | undefined = undefined
 >(
   path: Pathname,
@@ -140,7 +140,7 @@ export const page = <
 export interface Layout<
   in out Pathname extends string,
   in out ParamsSchema extends GetParamsSchema<Pathname>,
-  in out QueryParamsSchema extends QueryParams,
+  in out QueryParamsSchema extends QueryParams | undefined,
   in out Children extends readonly RouteBase[]
 > extends RouteBase {
   readonly type: "layout";
@@ -153,10 +153,10 @@ export interface Layout<
 export const layout = <
   const Pathname extends string,
   const ParamsSchema extends GetParamsSchema<Pathname>,
-  const QueryParamsSchema extends QueryParams | QueryParamParserMap<any> = {
-    layout: {};
-    page: {};
-  },
+  const QueryParamsSchema extends
+    | QueryParams
+    | QueryParamParserMap<any>
+    | undefined = undefined,
   const Children extends readonly RouteBase[] = []
 >(
   path: Pathname,
@@ -168,19 +168,18 @@ export const layout = <
 ): Layout<
   Pathname,
   ParamsSchema,
-  MakeQueryParamsReturn<QueryParamsSchema, "layout">,
+  undefined extends QueryParamsSchema
+    ? undefined
+    : MakeQueryParamsReturn<QueryParamsSchema, "layout">,
   Children
 > => ({
   type: "layout",
   path: path,
   params: config.params as ParamsSchema,
   children: (config.children ?? []) as Children,
-  query: (config.query
-    ? makeQueryParams(config.query, "layout")
-    : { page: {}, layout: {} }) as MakeQueryParamsReturn<
-    QueryParamsSchema,
-    "layout"
-  >,
+  query: (config.query === undefined
+    ? undefined
+    : makeQueryParams(config.query, "layout")) as any,
   ["~paramSchemaMap"]: {} as ParamSchemaMap<Pathname, ParamsSchema>,
 });
 
@@ -764,22 +763,26 @@ export abstract class Router<
         }
       }
 
-      // Merge in params of all layouts above this route for both pages and layouts
-      for (const key of Object.keys(currentRoute.query.layout)) {
-        res.query.layout[key] = currentRoute.query.layout[
-          key as keyof typeof currentRoute.query.layout
-        ] as any;
-        res.query.page[key] = currentRoute.query.layout[
-          key as keyof typeof currentRoute.query.layout
-        ] as any;
+      if (currentRoute.query !== undefined) {
+        // Merge in params of all layouts above this route for both pages and layouts
+        for (const key of Object.keys(currentRoute.query.layout)) {
+          res.query.layout[key] = currentRoute.query.layout[
+            key as keyof typeof currentRoute.query.layout
+          ] as any;
+          res.query.page[key] = currentRoute.query.layout[
+            key as keyof typeof currentRoute.query.layout
+          ] as any;
+        }
       }
 
-      // Page query params are only added for that specific page
-      if (pathSegments.length === 0) {
-        for (const key of Object.keys(currentRoute.query.page)) {
-          res.query.page[key] = currentRoute.query.page[
-            key as keyof typeof currentRoute.query.page
-          ] as any;
+      if (currentRoute.query !== undefined) {
+        // Page query params are only added for that specific page
+        if (pathSegments.length === 0) {
+          for (const key of Object.keys(currentRoute.query.page)) {
+            res.query.page[key] = currentRoute.query.page[
+              key as keyof typeof currentRoute.query.page
+            ] as any;
+          }
         }
       }
     }

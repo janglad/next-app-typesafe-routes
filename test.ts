@@ -6,6 +6,7 @@ import {
   page,
   Router,
   type GetRoute,
+  type GetRouteSchema,
   type LazyAllPaths,
 } from "./src/router/server.js";
 
@@ -1067,3 +1068,32 @@ const [query] = new Router(
 ).useLayoutQuery("/auth", {});
 
 useQueryStates;
+
+const test = page("", {
+  children: [
+    page("hi", {
+      query: {
+        page: {
+          test: parseAsString,
+        },
+        layout: {
+          hi: parseAsString,
+        },
+      },
+      children: [],
+    }),
+  ],
+});
+
+test.children[0].query;
+
+type Schema = GetRouteSchema<"/hi", [typeof test]>;
+
+const r = new Router(test).route(
+  "/",
+  {},
+  {
+    test: "hi",
+    whatever: "hello",
+  }
+);
