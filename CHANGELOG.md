@@ -1,5 +1,11 @@
 # next-app-typesafe-routes
 
+## 0.0.6
+
+### Patch Changes
+
+- 49f5454: add support for useSelectedLayoutSegment, type perf, loosen peer dep requirements
+
 ## 0.0.5
 
 ### Patch Changes
