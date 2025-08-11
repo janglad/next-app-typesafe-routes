@@ -2,9 +2,13 @@ import type { UseQueryStatesOptions, UseQueryStatesReturn } from "nuqs";
 import {
   Router as RouterBase,
   RoutingInternalDefectError,
+  type AbsorbUndefined,
   type GetRouteSchema,
   type LazyAllPaths,
+  type RouteAtPath,
   type RouteBase,
+  type RouteRepresentation,
+  type RouteType,
 } from "./shared.js";
 
 function forbiddenOnServer(functionName: string): never {
@@ -31,6 +35,17 @@ export class Router<
     >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]> {
     forbiddenOnServer("useLayoutQuery");
+  }
+
+  useSelectedLayoutSegment<const Path extends string>(
+    _path: LazyAllPaths<[Routes], Path, RouteType> & string
+  ): RouteRepresentation<
+    AbsorbUndefined<
+      RouteAtPath<Path, Routes, RouteType>["children"],
+      never
+    >[number]
+  > | null {
+    forbiddenOnServer("useSelectedLayoutSegment");
   }
 }
 export * from "./shared.js";

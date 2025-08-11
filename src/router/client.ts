@@ -1,10 +1,15 @@
 import {
   Router as RouterBase,
+  type AbsorbUndefined,
   type GetRouteSchema,
   type LazyAllPaths,
+  type RouteAtPath,
   type RouteBase,
+  type RouteRepresentation,
+  type RouteType,
 } from "./shared.js";
 
+import { useSelectedLayoutSegment as useSelectedLayoutSegmentBase } from "next/navigation.js";
 import {
   useQueryStates,
   type UseQueryStatesOptions,
@@ -42,6 +47,18 @@ export class Router<
     }
 
     return useQueryStates(schema.data.schema.query.layout, options);
+  }
+
+  useSelectedLayoutSegment<const Path extends string>(
+    _path: LazyAllPaths<[Routes], Path, RouteType> & string
+  ): RouteRepresentation<
+    AbsorbUndefined<
+      RouteAtPath<Path, Routes, RouteType>["children"],
+      never
+    >[number]
+  > | null {
+    const useSelectedLayoutSegment = useSelectedLayoutSegmentBase();
+    return useSelectedLayoutSegment as any;
   }
 }
 

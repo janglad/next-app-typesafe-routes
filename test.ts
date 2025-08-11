@@ -5,9 +5,12 @@ import {
   layout,
   page,
   Router,
-  type GetRoute,
+  type RouteAtPath,
   type GetRouteSchema,
   type LazyAllPaths,
+  type RouteBase,
+  type AbsorbUndefined,
+  type RouteRepresentation,
 } from "./src/router/server.js";
 
 const routes = page("", {
@@ -1096,4 +1099,14 @@ const r = new Router(test).route(
     test: "hi",
     whatever: "hello",
   }
+);
+
+const testRouter = new Router(
+  page("", {
+    children: [
+      page("static", {
+        children: [page("hi"), page("[hi]")],
+      }),
+    ],
+  })
 );

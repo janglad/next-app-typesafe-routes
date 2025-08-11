@@ -1,9 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type {
-  ParserBuilder,
-  UseQueryStatesOptions,
-  UseQueryStatesReturn,
-} from "nuqs";
+import type { UseQueryStatesOptions, UseQueryStatesReturn } from "nuqs";
 import {
   createLoader,
   createSerializer,
@@ -122,7 +118,7 @@ export const page = <
   Pathname,
   ParamsSchema,
   MakeQueryParamsReturn<QueryParamsSchema, "page">,
-  Children
+  undefined extends Children ? undefined : Children
 > => ({
   type: "page",
   path: path,
@@ -227,7 +223,15 @@ export const group = <
   ["~paramSchemaMap"]: {},
 });
 
-type AbsorbUndefined<T> = T extends undefined ? never : T;
+export type AbsorbUndefined<T, AbsorbWith = never> = T extends undefined
+  ? AbsorbWith
+  : T;
+
+export type NumberPassThroughNever<T extends readonly unknown[]> = [T] extends [
+  never
+]
+  ? never
+  : T[number];
 
 export type LazyAllPaths<
   Route extends [any],
@@ -330,50 +334,39 @@ export type GetRouteSchema<
     }
   : never;
 
-type MatchingRoute<Path extends string, Routes extends [any]> = Extract<
-  Routes[0],
-  { readonly path: Path }
->;
-
 type LayoutQueryParams<T extends [any]> = T[0]["layout"];
 type PageQueryParams<T extends [any]> = T[0]["page"];
 
-export type GetRoute<
+export type RouteAtPath<
   Path extends string,
   Route extends RouteBase,
-  Params extends Record<string, StandardSchemaV1<string>> = {},
-  PageQueryParamMap = {}
+  Type extends RouteType
 > = Path extends `${infer First}/${infer Rest}`
-  ? MatchingRoute<First, [Route]> extends {
+  ? GetMatchingRoute<First, [Route]> extends {
       children: infer Children extends readonly RouteBase[];
-      query: infer Query;
-      ["~paramSchemaMap"]: infer ParamSchemaMap;
     }
-    ? GetRoute<
-        Rest,
-        Children[number],
-        ParamSchemaMap & Params,
-        PageQueryParamMap & LayoutQueryParams<[Query]>
-      >
+    ? RouteAtPath<Rest, Children[number], Type>
     : never
-  : GetMatchingRoute<Path, [Route]> extends {
-      type: infer MatchedType;
-      ["~paramSchemaMap"]: infer ParamSchemaMap;
-      query: infer Query;
+  : GetMatchingRoute<Path, [Route]> extends infer Route extends RouteBase & {
+      type: Type;
     }
-  ? {
-      type: MatchedType;
-      params: StrictEmptyObject<Prettify<ParamSchemaMap & Params>>;
-      query: {
-        page: StrictEmptyObject<
-          Prettify<PageQueryParamMap & PageQueryParams<[Query]>>
-        >;
-        layout: StrictEmptyObject<
-          Prettify<PageQueryParamMap & LayoutQueryParams<[Query]>>
-        >;
-      };
-    }
+  ? Route
   : never;
+
+type UndefinedToNull<T> =
+  // Force distribution so we can map over the union
+  T extends any
+    ? //
+      T extends undefined
+      ? null
+      : T
+    : never;
+
+export type RouteRepresentation<Route extends RouteBase> =
+  Route["params"] extends undefined
+    ? Route["path"]
+    : // Optional catch all (e.g. [[...param]]) is represented as undefined in params but null when using Next's useSelectedLayoutSegment(s) hooks
+      UndefinedToNull<SchemaOutput<Route["params"]>>;
 
 type Prettify<T> = {
   [K in keyof T]: T[K];
@@ -1091,6 +1084,16 @@ export abstract class Router<
       UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
     >
   ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]>;
+
+  /** Note this does no runtime validation. */
+  abstract useSelectedLayoutSegment<const Path extends string>(
+    path: LazyAllPaths<[Routes], Path> & string
+  ): RouteRepresentation<
+    AbsorbUndefined<
+      RouteAtPath<Path, Routes, RouteType>["children"],
+      never
+    >[number]
+  > | null;
 }
 
 interface SafeSerializer<

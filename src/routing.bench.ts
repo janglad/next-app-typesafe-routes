@@ -5,9 +5,10 @@ import {
   layout,
   page,
   Router,
-  type GetRoute,
+  type RouteAtPath,
   type GetRouteSchema,
   type LazyAllPaths,
+  type RouteType,
 } from "./router/server.js";
 
 bench("simple route config", () => {
@@ -275,12 +276,11 @@ bench("Get route schema", () => {
   >;
 }).types([266, "instantiations"]);
 
-type test = GetRoute<"", typeof getRouteSchemaRoutes>;
-
 bench("Get route", () => {
-  const val = {} as GetRoute<
+  const val = {} as RouteAtPath<
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
-    typeof getRouteSchemaRoutes
+    typeof getRouteSchemaRoutes,
+    RouteType
   >;
 }).types([252, "instantiations"]);
 
