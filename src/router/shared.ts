@@ -334,9 +334,6 @@ export type GetRouteSchema<
     }
   : never;
 
-type LayoutQueryParams<T extends [any]> = T[0]["layout"];
-type PageQueryParams<T extends [any]> = T[0]["page"];
-
 export type RouteAtPath<
   Path extends string,
   Route extends RouteBase,
