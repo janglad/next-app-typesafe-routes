@@ -299,7 +299,7 @@ type ParamSchemaMap<RoutePathName extends string, RouteParamSchema> = {
     : RouteParamSchema;
 };
 
-type GetMatchingRoute<
+export type GetMatchingRoute<
   Pathname extends string,
   Routes extends readonly RouteBase[]
 > = Extract<Routes[number], { readonly path: Pathname }>;
@@ -308,9 +308,19 @@ type GetPageQueryParamsSchema<T> = T extends QueryParams ? T["page"] : {};
 type GetLayoutQueryParamsSchema<T> = T extends QueryParams ? T["layout"] : {};
 
 // TODO: fine better way to solve this
-type StrictEmptyObject<T> = T;
+type StrictEmptyObject<T> = keyof T extends never ? Record<string, never> : T;
+
+type ClearTrailingSlash<T extends string> = T extends `${infer Rest}/`
+  ? Rest
+  : T;
 
 export type GetRouteSchema<
+  Path extends string,
+  RootRoute extends RouteBase,
+  Type extends RouteType = RouteType
+> = _GetRouteSchema<ClearTrailingSlash<Path>, [RootRoute], Type>;
+
+type _GetRouteSchema<
   Path extends string,
   Routes extends readonly RouteBase[],
   Type extends RouteType = RouteType,
@@ -322,7 +332,7 @@ export type GetRouteSchema<
       ["~paramSchemaMap"]: infer RouteParamSchemaMap;
       query: infer RouteQuerySchema;
     }
-    ? GetRouteSchema<
+    ? _GetRouteSchema<
         Rest,
         RoutePathChildren,
         Type,
@@ -545,13 +555,13 @@ type HrefSafeReturn =
     };
 
 export type GetRouteSchemaReturn<
-  Routes extends RouteBase,
+  RootRoute extends RouteBase,
   Path extends string
 > =
   | {
       readonly ok: true;
       readonly data: {
-        readonly schema: GetRouteSchema<Path, [Routes]>;
+        readonly schema: GetRouteSchema<Path, RootRoute>;
         readonly matchedType: RouteType;
       };
       readonly error?: undefined;
@@ -810,7 +820,7 @@ export abstract class Routes<
     const returnValue = {
       ok: true as const,
       data: {
-        schema: res as GetRouteSchema<Path, [RootRoute]>,
+        schema: res as GetRouteSchema<Path, RootRoute>,
         matchedType: matchedType,
       },
     };
@@ -830,7 +840,7 @@ export abstract class Routes<
    */
   hrefSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
+    const RouteSchema extends GetRouteSchema<Path, RootRoute, "page">
   >(
     path: LazyAllPaths<[RootRoute], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
@@ -907,7 +917,7 @@ export abstract class Routes<
   /** Like {@link hrefSafe} but throws if the route is not found. */
   href<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
+    const RouteSchema extends GetRouteSchema<Path, RootRoute, "page">
   >(
     path: LazyAllPaths<[RootRoute], Path, "page"> & string,
     params: GetParamMapInput<RouteSchema["params"]>,
@@ -922,7 +932,7 @@ export abstract class Routes<
 
   ["~parseSafe"]<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [RootRoute]>
+    const RouteSchema extends GetRouteSchema<Path, RootRoute>
   >(
     path: LazyAllPaths<[RootRoute], Path>,
     target: "page" | "layout",
@@ -995,7 +1005,7 @@ export abstract class Routes<
 
   parsePageSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
+    const RouteSchema extends GetRouteSchema<Path, RootRoute, "page">
   >(
     path: LazyAllPaths<[RootRoute], Path, "page">,
     props: MapAwaited<RawPageProps>
@@ -1005,7 +1015,7 @@ export abstract class Routes<
 
   parseLayoutSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [RootRoute]>
+    const RouteSchema extends GetRouteSchema<Path, RootRoute>
   >(
     path: LazyAllPaths<[RootRoute], Path>,
     props: MapAwaited<RawPageProps>
@@ -1015,7 +1025,7 @@ export abstract class Routes<
 
   implementPage<const Path extends string, const Out>(
     path: LazyAllPaths<[RootRoute], Path, "page">,
-    implementation: PageImplementation<[RootRoute], Path, Out>
+    implementation: PageImplementation<RootRoute, Path, Out>
   ): (props: RawPageProps) => Out {
     const safeParser = async (props: RawPageProps) => {
       const params = await props.params;
@@ -1052,7 +1062,7 @@ export abstract class Routes<
 
   implementLayout<const Path extends string, const Out>(
     path: LazyAllPaths<[RootRoute], Path, RouteType>,
-    implementation: LayoutImplementation<[RootRoute], Path, Out>
+    implementation: LayoutImplementation<RootRoute, Path, Out>
   ): (props: RawLayoutProps) => Out {
     const safeParser = async (props: RawLayoutProps) => {
       const params = await props.params;
@@ -1090,15 +1100,23 @@ export abstract class Routes<
   abstract usePageQuery<const Path extends string>(
     path: LazyAllPaths<[RootRoute], Path, "page"> & string,
     options?: Partial<
-      UseQueryStatesOptions<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>
+      UseQueryStatesOptions<
+        GetRouteSchema<Path, RootRoute, "page">["query"]["page"]
+      >
     >
-  ): UseQueryStatesReturn<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>;
+  ): UseQueryStatesReturn<
+    GetRouteSchema<Path, RootRoute, "page">["query"]["page"]
+  >;
   abstract useLayoutQuery<const Path extends string>(
     path: LazyAllPaths<[RootRoute], Path> & string,
     options?: Partial<
-      UseQueryStatesOptions<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>
+      UseQueryStatesOptions<
+        GetRouteSchema<Path, RootRoute, "layout">["query"]["page"]
+      >
     >
-  ): UseQueryStatesReturn<GetRouteSchema<Path, [RootRoute]>["query"]["layout"]>;
+  ): UseQueryStatesReturn<
+    GetRouteSchema<Path, RootRoute, "layout">["query"]["layout"]
+  >;
 
   /** Note this does no runtime validation. */
   abstract useSelectedLayoutSegment<const Path extends string>(
@@ -1116,18 +1134,18 @@ export abstract class Routes<
 }
 
 interface PageImplementation<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
   in out Out,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes
+    RootRoute
   >
 > {
   (args: {
     props: RawPageProps;
-    parseSafe: PageImplParser<Routes, Path, RouteSchema>;
-    parse: PageImplParserUnsafe<Routes, Path, RouteSchema>;
+    parseSafe: PageImplParser<RootRoute, Path, RouteSchema>;
+    parse: PageImplParserUnsafe<RootRoute, Path, RouteSchema>;
   }): Out;
 }
 type PageParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
@@ -1152,40 +1170,40 @@ export interface PageParseReturn<
   readonly query: PageQueryOutput<RouteSchema>;
 }
 export interface PageImplParser<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes
+    RootRoute
   >
 > {
   (): Promise<PageParseSafeReturn<RouteSchema>>;
 }
 export interface PageImplParserUnsafe<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes
+    RootRoute
   >
 > {
   (): Promise<PageParseReturn<RouteSchema>>;
 }
 
 export interface LayoutImplementation<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
   in out Out,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes,
+    RootRoute,
     RouteType
   >
 > {
   (args: {
     props: RawLayoutProps;
-    parseSafe: LayoutImplParser<Routes, Path, RouteSchema>;
-    parse: LayoutImplParserUnsafe<Routes, Path, RouteSchema>;
+    parseSafe: LayoutImplParser<RootRoute, Path, RouteSchema>;
+    parse: LayoutImplParserUnsafe<RootRoute, Path, RouteSchema>;
   }): Out;
 }
 
@@ -1213,21 +1231,21 @@ export interface LayoutParseReturn<
   readonly query: LayoutQueryOutput<RouteSchema>;
 }
 export interface LayoutImplParser<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes
+    RootRoute
   >
 > {
   (): Promise<LayoutParseSafeReturn<RouteSchema>>;
 }
 export interface LayoutImplParserUnsafe<
-  in out Routes extends readonly RouteBase[],
+  in out RootRoute extends RouteBase,
   in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, Routes> = GetRouteSchema<
+  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
     Path,
-    Routes
+    RootRoute
   >
 > {
   (): Promise<LayoutParseReturn<RouteSchema>>;
