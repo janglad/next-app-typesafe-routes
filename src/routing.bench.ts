@@ -9,7 +9,9 @@ import {
   type GetRouteSchema,
   type LazyAllPaths,
   type RouteType,
+  type LayoutSegments,
 } from "./router/server.js";
+import { routes as largeRoutes } from "../test.js";
 
 bench("simple route config", () => {
   page("", {
@@ -283,6 +285,16 @@ bench("Get route", () => {
     RouteType
   >;
 }).types([252, "instantiations"]);
+
+type test = LayoutSegments<[]>;
+
+bench("Get layout segments", () => {
+  const val = {} as LayoutSegments<[typeof getRouteSchemaRoutes]>;
+}).types([796, "instantiations"]);
+
+bench("Large layout segments", () => {
+  const val = {} as LayoutSegments<[typeof largeRoutes]>;
+}).types([70742, "instantiations"]);
 
 const routes = page("", {
   children: [page("staticPage"), page("[dynamicPage]")],

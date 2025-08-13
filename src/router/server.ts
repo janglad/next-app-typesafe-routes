@@ -4,6 +4,7 @@ import {
   RoutingInternalDefectError,
   type AbsorbUndefined,
   type GetRouteSchema,
+  type LayoutSegments,
   type LazyAllPaths,
   type RouteAtPath,
   type RouteBase,
@@ -46,6 +47,11 @@ export class Router<
     >[number]
   > | null {
     forbiddenOnServer("useSelectedLayoutSegment");
+  }
+  useSelectedLayoutSegments<const Path extends string>(
+    _path: LazyAllPaths<[Routes], Path> & string
+  ): LayoutSegments<RouteAtPath<Path, Routes, RouteType>["children"]> {
+    forbiddenOnServer("useSelectedLayoutSegments");
   }
 }
 export * from "./shared.js";

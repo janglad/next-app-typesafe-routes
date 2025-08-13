@@ -241,6 +241,27 @@ export type LazyAllPaths<
   ? Path
   : (_GetPath<Path, [{ children: Route }], Type> & string) | "/";
 
+type SegmentFromPath<Route extends RouteBase> =
+  Route["params"] extends undefined
+    ? Route["path"]
+    : // Optional catch all segments are represented as string[] | undefined in params but will simply not be part of the segments array
+      AbsorbUndefined<SchemaOutput<Route["params"]>>;
+
+export type LayoutSegments<Routes> = Routes extends readonly unknown[]
+  ? Routes[number] extends infer Route
+    ? Route extends RouteBase
+      ? SegmentFromPath<Route> extends infer RouteSegment
+        ? RouteSegment extends readonly string[]
+          ? // Catch all segments are always at the end of the path
+            RouteSegment
+          :
+              | [RouteSegment]
+              | [RouteSegment, ...LayoutSegments<Route["children"]>]
+        : never
+      : never
+    : never
+  : never;
+
 type GetChildrenOfType<
   Route extends [any],
   Type extends RouteType
@@ -337,12 +358,18 @@ export type GetRouteSchema<
 export type RouteAtPath<
   Path extends string,
   Route extends RouteBase,
+  Type extends RouteType = RouteType
+> = Path extends "/" ? Route : _RouteAtPath<Path, Route, Type>;
+
+type _RouteAtPath<
+  Path extends string,
+  Route extends RouteBase,
   Type extends RouteType
 > = Path extends `${infer First}/${infer Rest}`
   ? GetMatchingRoute<First, [Route]> extends {
       children: infer Children extends readonly RouteBase[];
     }
-    ? RouteAtPath<Rest, Children[number], Type>
+    ? _RouteAtPath<Rest, Children[number], Type>
     : never
   : GetMatchingRoute<Path, [Route]> extends infer Route extends RouteBase & {
       type: Type;
@@ -1091,6 +1118,10 @@ export abstract class Router<
       never
     >[number]
   > | null;
+
+  abstract useSelectedLayoutSegments<const Path extends string>(
+    path: LazyAllPaths<[Routes], Path> & string
+  ): LayoutSegments<RouteAtPath<Path, Routes, RouteType>["children"]>;
 }
 
 interface SafeSerializer<

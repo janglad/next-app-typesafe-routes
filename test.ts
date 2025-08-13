@@ -11,9 +11,11 @@ import {
   type RouteBase,
   type AbsorbUndefined,
   type RouteRepresentation,
-} from "./src/router/server.js";
+  type RouteType,
+  type LayoutSegments,
+} from "./src/router/client.js";
 
-const routes = page("", {
+export const routes = page("", {
   children: [
     page("[id]", {
       params: z.string().brand("id"),
@@ -1037,75 +1039,43 @@ const routes = page("", {
   ],
 });
 
-const router = new Router(routes);
+type NotHello<T extends string> = T extends "hello" ? never : T;
 
-export const res = router.routeSafe(
-  "/[id]/[user]/[orderId]/[refundId]/documents",
-  {
-    id: "1",
-    user: "2",
-    orderId: "3",
-    refundId: "hi",
-  },
-  {}
-);
+declare const test:
+  | ["hi", ...[NotHello<string>, ...string[]]]
+  | ["hi", "hello"]
+  | ["hi", "hello", "world"]
+  | ["hello"];
 
-const [query2] = router.useLayoutQuery("/[id]");
+if (test[0] === "hello") {
+  test;
+  // ^?
+}
 
-const [query] = new Router(
-  page("", {
-    children: [
-      layout("auth", {
-        query: {
-          page: {
-            testing: parseAsString,
-          },
-          layout: {
-            testing: parseAsString,
-          },
-        },
-        children: [page("hi")],
-      }),
-    ],
-  })
-).useLayoutQuery("/auth", {});
+if (test[1] === "hello") {
+  test;
+  //  ["hi", string, ...string[]] | ["hi", "hello"] | ["hi", "hello", "world"] | ["hello"]
+  // ^?
+}
+if (test[2] === "world") {
+  test;
+  // ^?
+}
 
-useQueryStates;
-
-const test = page("", {
-  children: [
-    page("hi", {
-      query: {
-        page: {
-          test: parseAsString,
-        },
-        layout: {
-          hi: parseAsString,
-        },
-      },
-      children: [],
-    }),
-  ],
-});
-
-test.children[0].query;
-
-type Schema = GetRouteSchema<"/hi", [typeof test]>;
-
-const r = new Router(test).route(
-  "/",
-  {},
-  {
-    test: "hi",
-    whatever: "hello",
-  }
-);
+const UserId = z.string().brand("userId");
+type UserId = z.infer<typeof UserId>;
 
 const testRouter = new Router(
   page("", {
     children: [
-      page("static", {
-        children: [page("hi"), page("[hi]")],
+      page("hello", {
+        children: [
+          page("world"),
+          page("nested", {
+            children: [page("world"), page("[...id]")],
+          }),
+          page("[userId]", { params: UserId }),
+        ],
       }),
     ],
   })
