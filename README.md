@@ -7,8 +7,6 @@ Simple type safe routing for Next.js app router
 ### Features
 
 - [ ] Implement `useParams`
-- [ ] Implement `useSelectedLayoutSegment`
-- [ ] Implement `useSelectedLayoutSegments`
 - [ ] Look into parallel/intercepting routes
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
@@ -23,7 +21,7 @@ Simple type safe routing for Next.js app router
 ![Example](./README-assets//autocomplete.webp)
 
 ```tsx
-const router = new Router(
+const routes = new Routes(
   page("", {
     children: [
       // Route group - not part of actual URL
@@ -57,25 +55,27 @@ const router = new Router(
 );
 
 // /sign-in?email=test@test.com (with URI encoding)
-router.route("/(auth)/sign-in", {}, { email: "test@test.com" });
+routes.href("/(auth)/sign-in", {}, { email: "test@test.com" });
 
 // Type error: not a valid route. Should be /sign-in
-router.route("/(auth)/signIn", {}, { email: "test@test.com" });
+routes.href("/(auth)/signIn", {}, { email: "test@test.com" });
 
-// Type error: missing param itemId
-router.route("/items/[itemId]", {}, {});
+// throws validation error: missing param itemId
+routes.href("/items/[itemId]", {}, {});
 
 // Runtime error: not a valid UUID
-router.route("/items/[itemId]", { itemId: "123" }, {});
+routes.href("/items/[itemId]", { itemId: "123" }, {});
+// All methods that can throw also have a safe version that returns a Result type
+routes.hrefSafe("/items/[itemId]", { itemId: "123" }, {});
 
-export default router.implementPage("/(auth)/sign-in", async (props) => {
+export default routes.implementPage("/(auth)/sign-in", async (props) => {
   const { query } = await props.parse();
   return <div>{query.email}</div>;
 });
 
 // Only available in client components
-const [query, setQuery] = router.useLayoutQuery("/(auth)");
+const [query, setQuery] = routes.useLayoutQuery("/(auth)");
 
-const selectedLayoutSegment = router.useSelectedLayoutSegment("/(auth)");
+const selectedLayoutSegment = routes.useSelectedLayoutSegment("/(auth)");
 // "sign-in" | "sign-up"
 ```

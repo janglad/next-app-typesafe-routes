@@ -4,7 +4,7 @@ import z from "zod";
 import {
   layout,
   page,
-  Router,
+  Routes,
   type RouteAtPath,
   type GetRouteSchema,
   type LazyAllPaths,
@@ -91,10 +91,10 @@ bench("Larger route config", () => {
 }).types([163, "instantiations"]);
 
 bench("Route root page", () => {
-  new Router(page("", { children: [page("hi")] })).routeSafe("/", {}, {});
+  new Routes(page("", { children: [page("hi")] })).hrefSafe("/", {}, {});
 }).types([987, "instantiations"]);
 
-const dynamicRouteRouter = new Router(
+const dynamicRouteRouter = new Routes(
   layout("", {
     children: [
       page("staticLayout", {
@@ -116,7 +116,7 @@ const dynamicRouteRouter = new Router(
   })
 );
 bench("Route nested dynamic page", () => {
-  dynamicRouteRouter.routeSafe(
+  dynamicRouteRouter.hrefSafe(
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
     {
       noValidationDynamicLayout: "param1",
@@ -127,7 +127,7 @@ bench("Route nested dynamic page", () => {
   );
 }).types([1392, "instantiations"]);
 
-const deeplyNestedRouter = new Router(
+const deeplyNestedRouter = new Routes(
   layout("", {
     children: [
       page("page"),
@@ -200,7 +200,7 @@ const deeplyNestedRouter = new Router(
 );
 
 bench("Route deeply nested page", () => {
-  deeplyNestedRouter.routeSafe(
+  deeplyNestedRouter.hrefSafe(
     "/layout/level1-layout/level2-layout/[param1]/[param2]/[param3]/deeply-nested/[param4]/final-page",
     {
       param1: "param1",

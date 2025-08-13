@@ -1,5 +1,5 @@
 import {
-  Router as RouterBase,
+  Routes as RouterBase,
   type AbsorbUndefined,
   type GetRouteSchema,
   type LayoutSegments,
@@ -20,7 +20,7 @@ import {
   type UseQueryStatesReturn,
 } from "nuqs";
 
-export class Router<
+export class Routes<
   const in out Routes extends RouteBase & {
     path: "";
     type: "page" | "layout";

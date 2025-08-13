@@ -1,6 +1,6 @@
 import type { UseQueryStatesOptions, UseQueryStatesReturn } from "nuqs";
 import {
-  Router as RouterBase,
+  Routes as RouterBase,
   RoutingInternalDefectError,
   type AbsorbUndefined,
   type GetRouteSchema,
@@ -18,7 +18,7 @@ function forbiddenOnServer(functionName: string): never {
   });
 }
 
-export class Router<
+export class Routes<
   const in out Routes extends RouteBase & { path: ""; type: "page" | "layout" }
 > extends RouterBase<Routes> {
   usePageQuery<const Path extends string>(

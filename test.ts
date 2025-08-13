@@ -4,7 +4,7 @@ import {
   group,
   layout,
   page,
-  Router,
+  Routes,
   type RouteAtPath,
   type GetRouteSchema,
   type LazyAllPaths,
@@ -1065,7 +1065,7 @@ if (test[2] === "world") {
 const UserId = z.string().brand("userId");
 type UserId = z.infer<typeof UserId>;
 
-const testRouter = new Router(
+const testRouter = new Routes(
   page("", {
     children: [
       page("hello", {

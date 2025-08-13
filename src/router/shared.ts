@@ -532,7 +532,7 @@ export class RoutingInternalDefectError extends TaggedError {
   }
 }
 
-type RouterRouteReturn =
+type HrefSafeReturn =
   | {
       readonly ok: true;
       readonly data: string;
@@ -562,11 +562,14 @@ export type GetRouteSchemaReturn<
       readonly error: RoutingNoMatchingRouteError;
     };
 
-export abstract class Router<
-  const in out Routes extends RouteBase & { path: ""; type: "page" | "layout" }
+export abstract class Routes<
+  const in out RootRoute extends RouteBase & {
+    path: "";
+    type: "page" | "layout";
+  }
 > {
-  readonly ["~routes"]: Routes;
-  constructor(routes: Routes) {
+  readonly ["~routes"]: RootRoute;
+  constructor(routes: RootRoute) {
     this["~routes"] = routes;
   }
 
@@ -716,12 +719,12 @@ export abstract class Router<
 
   ["~getRouteSchemaCache"] = new Map<
     string,
-    GetRouteSchemaReturn<Routes, string>
+    GetRouteSchemaReturn<RootRoute, string>
   >();
 
   ["~getRouteSchema"]<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path>
-  ): GetRouteSchemaReturn<Routes, Path> {
+    path: LazyAllPaths<[RootRoute], Path>
+  ): GetRouteSchemaReturn<RootRoute, Path> {
     const cached = this["~getRouteSchemaCache"].get(path);
     if (cached !== undefined) {
       return cached as any;
@@ -771,7 +774,7 @@ export abstract class Router<
       routeCandidates = currentRoute.children ?? [];
       matchedType = currentRoute["type"];
 
-      const dynamicRouteKey = Router["~getDynamicRouteKey"](currentRoute.path);
+      const dynamicRouteKey = Routes["~getDynamicRouteKey"](currentRoute.path);
       if (dynamicRouteKey !== undefined) {
         if (currentRoute.params !== undefined) {
           res.params[dynamicRouteKey] = currentRoute.params;
@@ -807,7 +810,7 @@ export abstract class Router<
     const returnValue = {
       ok: true as const,
       data: {
-        schema: res as GetRouteSchema<Path, [Routes]>,
+        schema: res as GetRouteSchema<Path, [RootRoute]>,
         matchedType: matchedType,
       },
     };
@@ -825,14 +828,14 @@ export abstract class Router<
    *   - {@link RoutingValidationError}: a provided param does not match the expected schema
    *   - {@link RoutingNoMatchingRouteError}: the path does not match any route, or the last segment does not match a page
    */
-  routeSafe<
+  hrefSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
+    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
   >(
-    path: LazyAllPaths<[Routes], Path, "page">,
+    path: LazyAllPaths<[RootRoute], Path, "page">,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
-  ): RouterRouteReturn {
+  ): HrefSafeReturn {
     const schemaRes = this["~getRouteSchema"](path as string);
     if (schemaRes.ok === false) {
       return schemaRes;
@@ -886,11 +889,11 @@ export abstract class Router<
       }
     }
 
-    const urlWithParams = Router["~fillInPathParams"](
+    const urlWithParams = Routes["~fillInPathParams"](
       path,
       parsedNonEncodedParams
     );
-    const urlWithParamsWithoutGroups = Router["~stripGroups"](urlWithParams);
+    const urlWithParamsWithoutGroups = Routes["~stripGroups"](urlWithParams);
     const serializer = createSerializer(schemaRes.data.schema.query.page);
     const queryString = serializer(query as any);
     const url = `${urlWithParamsWithoutGroups}${queryString}`;
@@ -901,39 +904,27 @@ export abstract class Router<
     };
   }
 
-  /** Like {@link routeSafe} but throws if the route is not found. */
-  route<
+  /** Like {@link hrefSafe} but throws if the route is not found. */
+  href<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
+    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
   >(
-    path: LazyAllPaths<[Routes], Path, "page"> & string,
+    path: LazyAllPaths<[RootRoute], Path, "page"> & string,
     params: GetParamMapInput<RouteSchema["params"]>,
     query: GetParserMapInput<RouteSchema["query"]["page"]>
   ): string {
-    const res = this.routeSafe(path as string, params, query);
+    const res = this.hrefSafe(path as string, params, query);
     if (res.ok) {
       return res.data;
     }
     throw res.error;
   }
 
-  makeSerializer<Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page">
-  ): Serializer<[Routes], Path> {
-    return (params, query) => this.route(path as string, params, query);
-  }
-
-  makeSafeSerializer<Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page">
-  ): SafeSerializer<[Routes], Path> {
-    return (params, query) => this.routeSafe(path as string, params, query);
-  }
-
   ["~parseSafe"]<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+    const RouteSchema extends GetRouteSchema<Path, [RootRoute]>
   >(
-    path: LazyAllPaths<[Routes], Path>,
+    path: LazyAllPaths<[RootRoute], Path>,
     target: "page" | "layout",
     props: MapAwaited<RawPageProps>
   ): PageParseSafeReturn<RouteSchema> {
@@ -1004,9 +995,9 @@ export abstract class Router<
 
   parsePageSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes], "page">
+    const RouteSchema extends GetRouteSchema<Path, [RootRoute], "page">
   >(
-    path: LazyAllPaths<[Routes], Path, "page">,
+    path: LazyAllPaths<[RootRoute], Path, "page">,
     props: MapAwaited<RawPageProps>
   ): PageParseSafeReturn<RouteSchema> {
     return this["~parseSafe"](path as string, "page", props);
@@ -1014,17 +1005,17 @@ export abstract class Router<
 
   parseLayoutSafe<
     const Path extends string,
-    const RouteSchema extends GetRouteSchema<Path, [Routes]>
+    const RouteSchema extends GetRouteSchema<Path, [RootRoute]>
   >(
-    path: LazyAllPaths<[Routes], Path>,
+    path: LazyAllPaths<[RootRoute], Path>,
     props: MapAwaited<RawPageProps>
   ): LayoutParseSafeReturn<RouteSchema> {
     return this["~parseSafe"](path as string, "layout", props);
   }
 
   implementPage<const Path extends string, const Out>(
-    path: LazyAllPaths<[Routes], Path, "page">,
-    implementation: PageImplementation<[Routes], Path, Out>
+    path: LazyAllPaths<[RootRoute], Path, "page">,
+    implementation: PageImplementation<[RootRoute], Path, Out>
   ): (props: RawPageProps) => Out {
     const safeParser = async (props: RawPageProps) => {
       const params = await props.params;
@@ -1060,8 +1051,8 @@ export abstract class Router<
   }
 
   implementLayout<const Path extends string, const Out>(
-    path: LazyAllPaths<[Routes], Path, RouteType>,
-    implementation: LayoutImplementation<[Routes], Path, Out>
+    path: LazyAllPaths<[RootRoute], Path, RouteType>,
+    implementation: LayoutImplementation<[RootRoute], Path, Out>
   ): (props: RawLayoutProps) => Out {
     const safeParser = async (props: RawLayoutProps) => {
       const params = await props.params;
@@ -1097,51 +1088,31 @@ export abstract class Router<
   }
 
   abstract usePageQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path, "page"> & string,
+    path: LazyAllPaths<[RootRoute], Path, "page"> & string,
     options?: Partial<
-      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+      UseQueryStatesOptions<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>
     >
-  ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["page"]>;
+  ): UseQueryStatesReturn<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>;
   abstract useLayoutQuery<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path> & string,
+    path: LazyAllPaths<[RootRoute], Path> & string,
     options?: Partial<
-      UseQueryStatesOptions<GetRouteSchema<Path, [Routes]>["query"]["page"]>
+      UseQueryStatesOptions<GetRouteSchema<Path, [RootRoute]>["query"]["page"]>
     >
-  ): UseQueryStatesReturn<GetRouteSchema<Path, [Routes]>["query"]["layout"]>;
+  ): UseQueryStatesReturn<GetRouteSchema<Path, [RootRoute]>["query"]["layout"]>;
 
   /** Note this does no runtime validation. */
   abstract useSelectedLayoutSegment<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path> & string
+    path: LazyAllPaths<[RootRoute], Path> & string
   ): RouteRepresentation<
     AbsorbUndefined<
-      RouteAtPath<Path, Routes, RouteType>["children"],
+      RouteAtPath<Path, RootRoute, RouteType>["children"],
       never
     >[number]
   > | null;
 
   abstract useSelectedLayoutSegments<const Path extends string>(
-    path: LazyAllPaths<[Routes], Path> & string
-  ): LayoutSegments<RouteAtPath<Path, Routes, RouteType>["children"]>;
-}
-
-interface SafeSerializer<
-  in out Routes extends readonly RouteBase[],
-  in out Path extends string
-> {
-  (
-    params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
-    query: GetParserMapInput<GetRouteSchema<Path, Routes>["query"]["page"]>
-  ): RouterRouteReturn;
-}
-
-interface Serializer<
-  in out Routes extends readonly RouteBase[],
-  in out Path extends string
-> {
-  (
-    params: GetParamMapInput<GetRouteSchema<Path, Routes>["params"]>,
-    query: GetParserMapInput<GetRouteSchema<Path, Routes>["query"]["page"]>
-  ): string;
+    path: LazyAllPaths<[RootRoute], Path> & string
+  ): LayoutSegments<RouteAtPath<Path, RootRoute, RouteType>["children"]>;
 }
 
 interface PageImplementation<
