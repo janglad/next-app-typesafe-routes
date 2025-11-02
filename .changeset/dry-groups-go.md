@@ -2,4 +2,5 @@
 "next-app-typesafe-routes": patch
 ---
 
-hi
+- Rename `Router` to `Routes`
+- Add `useParams`

@@ -6,7 +6,8 @@ Simple type safe routing for Next.js app router
 
 ### Features
 
-- [ ] Implement `useParams`
+`
+
 - [ ] Look into parallel/intercepting routes
 - [ ] Think about API of passing info (one big object, optional stuff etc)
 - [ ] Fast pass for ZOD? (look into handling it as an optional peer dep)
