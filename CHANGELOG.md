@@ -1,5 +1,12 @@
 # next-app-typesafe-routes
 
+## 0.0.7
+
+### Patch Changes
+
+- a4b775c: - Rename `Router` to `Routes`
+  - Add `useParams`
+
 ## 0.0.6
 
 ### Patch Changes
