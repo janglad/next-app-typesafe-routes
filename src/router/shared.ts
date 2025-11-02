@@ -402,7 +402,7 @@ export type RouteRepresentation<Route extends RouteBase> =
     : // Optional catch all (e.g. [[...param]]) is represented as undefined in params but null when using Next's useSelectedLayoutSegment(s) hooks
       UndefinedToNull<SchemaOutput<Route["params"]>>;
 
-type Prettify<T> = {
+export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
@@ -1128,9 +1128,15 @@ export abstract class Routes<
     >[number]
   > | null;
 
+  /** Note this does no runtime validation. */
   abstract useSelectedLayoutSegments<const Path extends string>(
     path: LazyAllPaths<[RootRoute], Path> & string
   ): LayoutSegments<RouteAtPath<Path, RootRoute, RouteType>["children"]>;
+
+  /** Note this does no runtime validation. */
+  abstract useParams<const Path extends string>(
+    path: LazyAllPaths<[RootRoute], Path> & string
+  ): Prettify<RouteParamsOutput<GetRouteSchema<Path, RootRoute>>>;
 }
 
 interface PageImplementation<

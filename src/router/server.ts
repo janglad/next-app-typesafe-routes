@@ -6,8 +6,10 @@ import {
   type GetRouteSchema,
   type LayoutSegments,
   type LazyAllPaths,
+  type Prettify,
   type RouteAtPath,
   type RouteBase,
+  type RouteParamsOutput,
   type RouteRepresentation,
   type RouteType,
 } from "./shared.js";
@@ -52,6 +54,12 @@ export class Routes<
     _path: LazyAllPaths<[Routes], Path> & string
   ): LayoutSegments<RouteAtPath<Path, Routes, RouteType>["children"]> {
     forbiddenOnServer("useSelectedLayoutSegments");
+  }
+
+  useParams<const Path extends string>(
+    _path: LazyAllPaths<[Routes], Path> & string
+  ): Prettify<RouteParamsOutput<GetRouteSchema<Path, Routes>>> {
+    forbiddenOnServer("useParams");
   }
 }
 export * from "./shared.js";

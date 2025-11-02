@@ -4,8 +4,10 @@ import {
   type GetRouteSchema,
   type LayoutSegments,
   type LazyAllPaths,
+  type Prettify,
   type RouteAtPath,
   type RouteBase,
+  type RouteParamsOutput,
   type RouteRepresentation,
   type RouteType,
 } from "./shared.js";
@@ -13,6 +15,7 @@ import {
 import {
   useSelectedLayoutSegment as useSelectedLayoutSegmentBase,
   useSelectedLayoutSegments as useSelectedLayoutSegmentsBase,
+  useParams as useParamsBase,
 } from "next/navigation.js";
 import {
   useQueryStates,
@@ -71,6 +74,13 @@ export class Routes<
       _path as string
     );
     return useSelectedLayoutSegments as any;
+  }
+
+  useParams<const Path extends string>(
+    _path: LazyAllPaths<[Routes], Path> & string
+  ): Prettify<RouteParamsOutput<GetRouteSchema<Path, Routes>>> {
+    const useParams = useParamsBase();
+    return useParams as any;
   }
 }
 
