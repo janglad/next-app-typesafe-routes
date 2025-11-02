@@ -274,7 +274,7 @@ const getRouteSchemaRoutes = page("", {
 bench("Get route schema", () => {
   const val = {} as GetRouteSchema<
     "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]/[toUpperCase]",
-    [typeof getRouteSchemaRoutes]
+    typeof getRouteSchemaRoutes
   >;
 }).types([266, "instantiations"]);
 
@@ -302,7 +302,7 @@ const routes = page("", {
 
 const get = <const T extends string>(
   path: LazyAllPaths<[typeof routes], T>
-): GetRouteSchema<T, [typeof routes]> => {
+): GetRouteSchema<T, typeof routes> => {
   return {} as any;
 };
 
