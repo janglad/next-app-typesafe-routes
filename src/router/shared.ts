@@ -1050,12 +1050,12 @@ export abstract class Routes<
     };
 
     return (props: RawPageProps) => {
-      const safeParseScoped = () => safeParser(props);
-      const unsafeParseScoped = () => unsafeParser(props);
+      const parsedSafe = safeParser(props);
+      const parsed = unsafeParser(props);
       return implementation({
         props,
-        parseSafe: safeParseScoped,
-        parse: unsafeParseScoped,
+        parsedSafe,
+        parsed,
       });
     };
   }
@@ -1087,12 +1087,12 @@ export abstract class Routes<
     };
 
     return (props: RawLayoutProps) => {
-      const safeParseScoped = () => safeParser(props);
-      const unsafeParseScoped = () => unsafeParser(props);
+      const parsedSafe = safeParser(props);
+      const parsed = unsafeParser(props);
       return implementation({
         props,
-        parseSafe: safeParseScoped,
-        parse: unsafeParseScoped,
+        parsedSafe,
+        parsed,
       });
     };
   }
@@ -1150,8 +1150,8 @@ interface PageImplementation<
 > {
   (args: {
     props: RawPageProps;
-    parseSafe: PageImplParser<RootRoute, Path, RouteSchema>;
-    parse: PageImplParserUnsafe<RootRoute, Path, RouteSchema>;
+    parsedSafe: Promise<PageParseSafeReturn<RouteSchema>>;
+    parsed: Promise<PageParseReturn<RouteSchema>>;
   }): Out;
 }
 type PageParseSafeReturn<RouteSchema extends GetRouteSchema<any, any>> =
@@ -1175,26 +1175,6 @@ export interface PageParseReturn<
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: PageQueryOutput<RouteSchema>;
 }
-export interface PageImplParser<
-  in out RootRoute extends RouteBase,
-  in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
-    Path,
-    RootRoute
-  >
-> {
-  (): Promise<PageParseSafeReturn<RouteSchema>>;
-}
-export interface PageImplParserUnsafe<
-  in out RootRoute extends RouteBase,
-  in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
-    Path,
-    RootRoute
-  >
-> {
-  (): Promise<PageParseReturn<RouteSchema>>;
-}
 
 export interface LayoutImplementation<
   in out RootRoute extends RouteBase,
@@ -1208,8 +1188,8 @@ export interface LayoutImplementation<
 > {
   (args: {
     props: RawLayoutProps;
-    parseSafe: LayoutImplParser<RootRoute, Path, RouteSchema>;
-    parse: LayoutImplParserUnsafe<RootRoute, Path, RouteSchema>;
+    parsedSafe: Promise<LayoutParseSafeReturn<RouteSchema>>;
+    parsed: Promise<LayoutParseReturn<RouteSchema>>;
   }): Out;
 }
 
@@ -1235,26 +1215,6 @@ export interface LayoutParseReturn<
 > {
   readonly params: RouteParamsOutput<RouteSchema>;
   readonly query: LayoutQueryOutput<RouteSchema>;
-}
-export interface LayoutImplParser<
-  in out RootRoute extends RouteBase,
-  in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
-    Path,
-    RootRoute
-  >
-> {
-  (): Promise<LayoutParseSafeReturn<RouteSchema>>;
-}
-export interface LayoutImplParserUnsafe<
-  in out RootRoute extends RouteBase,
-  in out Path extends string,
-  in out RouteSchema extends GetRouteSchema<Path, RootRoute> = GetRouteSchema<
-    Path,
-    RootRoute
-  >
-> {
-  (): Promise<LayoutParseReturn<RouteSchema>>;
 }
 
 export type MapAwaited<T> = {

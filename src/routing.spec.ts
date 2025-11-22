@@ -337,8 +337,8 @@ describe("Router", () => {
     it("should properly parse params", async () => {
       const res = router.implementPage(
         "/staticLayout/[noValidationDynamicLayout]/[noValidationDynamicPage]",
-        async ({ parse: parseUnsafe }) => {
-          const { params } = await parseUnsafe();
+        async ({ parsed }) => {
+          const { params } = await parsed;
           return (
             params.noValidationDynamicLayout +
             "-" +
@@ -357,8 +357,8 @@ describe("Router", () => {
     it("Should properly parse query params", async () => {
       const res = router.implementPage(
         "/staticPageAndLayoutQuery",
-        async ({ parse: parseUnsafe }) => {
-          const { query } = await parseUnsafe();
+        async ({ parsed }) => {
+          const { query } = await parsed;
           return `${query.layoutParam}-${query.pageParam}`;
         }
       )({
@@ -391,8 +391,8 @@ describe("Router", () => {
     it("should properly parse params", async () => {
       const res = router.implementLayout(
         "/staticLayout/[noValidationDynamicLayout]",
-        async ({ parse: parseUnsafe }) => {
-          const { params } = await parseUnsafe();
+        async ({ parsed }) => {
+          const { params } = await parsed;
           return params.noValidationDynamicLayout;
         }
       )({
@@ -407,8 +407,8 @@ describe("Router", () => {
     it("Should properly parse query params", async () => {
       const res = router.implementLayout(
         "/staticPageAndLayoutQuery",
-        async ({ parse: parseUnsafe }) => {
-          const { query } = await parseUnsafe();
+        async ({ parsed }) => {
+          const { query } = await parsed;
           return `${query.layoutParam}-${
             // @ts-expect-error -- this should not be accepted
             query.pageParam

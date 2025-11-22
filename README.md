@@ -69,8 +69,8 @@ routes.href("/items/[itemId]", { itemId: "123" }, {});
 // All methods that can throw also have a safe version that returns a Result type
 routes.hrefSafe("/items/[itemId]", { itemId: "123" }, {});
 
-export default routes.implementPage("/(auth)/sign-in", async (props) => {
-  const { query } = await props.parse();
+export default routes.implementPage("/(auth)/sign-in", async ({ parsed }) => {
+  const { query } = await parsed;
   return <div>{query.email}</div>;
 });
 
