@@ -1,5 +1,11 @@
 # next-app-typesafe-routes
 
+## 0.0.8
+
+### Patch Changes
+
+- 6e9d0c2: Update implementPage/Layout signatures to pass through pending Promises instead of functions to make them compatible with Next cache-components
+
 ## 0.0.7
 
 ### Patch Changes
