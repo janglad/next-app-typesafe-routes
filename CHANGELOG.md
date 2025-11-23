@@ -1,5 +1,11 @@
 # next-app-typesafe-routes
 
+## 0.0.9
+
+### Patch Changes
+
+- 9ff2d83: Fix passing path as parallel route ky in useSelectedLayoutSegments, add (for now untyped) option to pass explicitely
+
 ## 0.0.8
 
 ### Patch Changes
