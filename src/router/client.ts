@@ -68,11 +68,11 @@ export class Routes<
     return useSelectedLayoutSegment as any;
   }
   useSelectedLayoutSegments<const Path extends string>(
-    _path: LazyAllPaths<[Routes], Path> & string
+    _path: LazyAllPaths<[Routes], Path> & string,
+    parallelRouteKey?: string
   ): LayoutSegments<RouteAtPath<Path, Routes, RouteType>["children"]> {
-    const useSelectedLayoutSegments = useSelectedLayoutSegmentsBase(
-      _path as string
-    );
+    const useSelectedLayoutSegments =
+      useSelectedLayoutSegmentsBase(parallelRouteKey);
     return useSelectedLayoutSegments as any;
   }
 
